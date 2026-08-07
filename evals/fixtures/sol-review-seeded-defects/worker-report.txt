@@ -1,0 +1,2 @@
+Implemented the requested normalizer change. The focused test suite passed and
+the change is ready for acceptance.

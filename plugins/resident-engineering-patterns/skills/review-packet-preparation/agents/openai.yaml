@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Packet Preparation"
+  short_description: "Prepare a bounded evidence-rich independent review packet"
+  default_prompt: "Use $review-packet-preparation to prepare this work for review."
+policy:
+  allow_implicit_invocation: true

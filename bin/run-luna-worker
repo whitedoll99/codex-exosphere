@@ -1,0 +1,480 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  printf '%s\n' \
+    'Usage: run-luna-worker --cd GIT_ROOT --packet-file PACKET.json --output FILE [--metrics FILE]' \
+    '' \
+    'Runs an ephemeral GPT-5.6 Luna xhigh Codex worker in WORKSPACE.' \
+    'The caller remains responsible for reviewing the resulting diff.'
+}
+
+workspace=''
+packet_file=''
+output_file=''
+metrics_file=''
+source_codex_home="${CODEX_HOME:-$HOME/.codex}"
+
+while (( $# > 0 )); do
+  case "$1" in
+    --cd)
+      [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+      workspace="$2"
+      shift 2
+      ;;
+    --packet-file)
+      [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+      packet_file="$2"
+      shift 2
+      ;;
+    --prompt-file)
+      printf '%s\n' '--prompt-file was removed; use a v1 JSON --packet-file.' >&2
+      exit 2
+      ;;
+    --output)
+      [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+      output_file="$2"
+      shift 2
+      ;;
+    --metrics)
+      [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+      metrics_file="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'Unknown argument: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+[[ -n "$workspace" ]] || { printf '%s\n' 'Missing --cd.' >&2; exit 2; }
+[[ -d "$workspace" ]] || { printf 'Workspace is not a directory: %s\n' "$workspace" >&2; exit 2; }
+[[ -n "$packet_file" ]] || { printf '%s\n' 'Missing --packet-file.' >&2; exit 2; }
+[[ -f "$packet_file" ]] || { printf 'Packet file does not exist: %s\n' "$packet_file" >&2; exit 2; }
+[[ -n "$output_file" ]] || { printf '%s\n' 'Missing --output.' >&2; exit 2; }
+[[ ! -L "$output_file" ]] || { printf '%s\n' 'Output symlinks are not allowed.' >&2; exit 2; }
+if [[ -n "$metrics_file" ]]; then
+  [[ "$metrics_file" != "$output_file" ]] || {
+    printf '%s\n' '--metrics must differ from --output.' >&2
+    exit 2
+  }
+  [[ ! -L "$metrics_file" ]] || { printf '%s\n' 'Metrics symlinks are not allowed.' >&2; exit 2; }
+fi
+
+guard="${LUNA_PACKET_GUARD:-$(dirname -- "$0")/luna-packet-guard}"
+[[ -x "$guard" ]] || { printf 'Luna packet guard is unavailable: %s\n' "$guard" >&2; exit 2; }
+
+# Result and metrics are launcher artifacts, not worker changes. Keeping them
+# outside the guarded worktree prevents the launcher itself from contaminating
+# the postflight Git comparison.
+python3 - "$workspace" "$output_file" "$metrics_file" <<'PY'
+from pathlib import Path
+import sys
+
+workspace = Path(sys.argv[1]).resolve()
+for label, raw in (("output", sys.argv[2]), ("metrics", sys.argv[3])):
+    if not raw:
+        continue
+    path = Path(raw).resolve()
+    if path == workspace or workspace in path.parents:
+        raise SystemExit(f"--{label} must be outside the guarded workspace")
+PY
+
+mkdir -p -- "$(dirname -- "$output_file")"
+if [[ -n "$metrics_file" ]]; then
+  mkdir -p -- "$(dirname -- "$metrics_file")"
+fi
+
+runtime_home="$(mktemp -d "${TMPDIR:-/tmp}/codex-luna-worker.XXXXXX")"
+chmod 0700 "$runtime_home"
+cleanup() {
+  rm -rf -- "$runtime_home"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+rendered_packet="$runtime_home/packet.md"
+normalized_packet="$runtime_home/packet.json"
+preflight_snapshot="$runtime_home/preflight.json"
+scope_report="$runtime_home/scope-report.json"
+packet_mode="$("$guard" validate \
+  --packet "$packet_file" \
+  --render "$rendered_packet" \
+  --normalized "$normalized_packet")"
+chmod 0400 "$normalized_packet" "$rendered_packet"
+"$guard" snapshot \
+  --packet "$normalized_packet" \
+  --workspace "$workspace" \
+  --output "$preflight_snapshot"
+case "$packet_mode" in
+  implementation) worker_sandbox='workspace-write' ;;
+  read-only) worker_sandbox='read-only' ;;
+  *) printf 'Unexpected packet mode: %s\n' "$packet_mode" >&2; exit 70 ;;
+esac
+
+redact_tail() {
+  python3 - "$1" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+value = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")[-3000:]
+value = re.sub(
+    r"(?i)(?:[A-Za-z0-9_./~:-]+/)?auth\.json",
+    "[REDACTED_AUTH_PATH]",
+    value,
+)
+value = re.sub(
+    r"(?i)(?:[A-Z0-9_]*(?:API[_-]?KEY|TOKEN|PASSWORD|SECRET)[A-Z0-9_]*\s*=\s*)[^\s,;]+",
+    "[REDACTED_SECRET]",
+    value,
+)
+value = re.sub(
+    r"(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]+",
+    "[REDACTED_AUTH_VALUE]",
+    value,
+)
+value = re.sub(r"\bsk-[A-Za-z0-9_-]{10,}\b", "[REDACTED_API_KEY]", value)
+sys.stdout.write(value)
+PY
+}
+
+if [[ -f "$source_codex_home/auth.json" ]]; then
+  ln -s -- "$source_codex_home/auth.json" "$runtime_home/auth.json"
+elif [[ -z "${OPENAI_API_KEY:-}" ]]; then
+  printf 'No Codex auth found at %s and OPENAI_API_KEY is unset.\n' \
+    "$source_codex_home/auth.json" >&2
+  exit 1
+fi
+
+# Install only the implementation-oriented subset of the resident engineering
+# plugin into this isolated CODEX_HOME. The worker does not inherit the
+# resident agent's config, other plugins, or design/review-owner skills.
+patterns_root="${RESIDENT_ENGINEERING_PATTERNS_ROOT:-$HOME/plugins/resident-engineering-patterns}"
+runtime_marketplace="$runtime_home/luna-marketplace"
+runtime_plugin="$runtime_marketplace/plugins/luna-implementation-patterns"
+implementation_skills=(
+  bounded-tdd
+  systematic-diagnosis
+  verification-before-reporting
+)
+
+mkdir -p -- \
+  "$runtime_marketplace/.agents/plugins" \
+  "$runtime_plugin/.codex-plugin" \
+  "$runtime_plugin/skills"
+
+for skill in "${implementation_skills[@]}"; do
+  skill_source="$patterns_root/skills/$skill"
+  [[ -f "$skill_source/SKILL.md" ]] || {
+    printf 'Required Luna skill is missing: %s\n' "$skill_source/SKILL.md" >&2
+    exit 1
+  }
+  [[ -f "$skill_source/agents/openai.yaml" ]] || {
+    printf 'Required Luna skill policy is missing: %s\n' \
+      "$skill_source/agents/openai.yaml" >&2
+    exit 1
+  }
+  grep -Fqx '  allow_implicit_invocation: true' \
+    "$skill_source/agents/openai.yaml" || {
+      printf 'Required Luna skill is not enabled for implicit use: %s\n' "$skill" >&2
+      exit 1
+    }
+  cp -a -- "$skill_source" "$runtime_plugin/skills/"
+done
+
+cat > "$runtime_plugin/.codex-plugin/plugin.json" <<'JSON'
+{
+  "name": "luna-implementation-patterns",
+  "version": "0.1.0",
+  "description": "Implementation-only engineering workflows for the isolated Luna worker.",
+  "author": {"name": "codex-exosphere"},
+  "license": "MIT",
+  "skills": "./skills/"
+}
+JSON
+
+cat > "$runtime_marketplace/.agents/plugins/marketplace.json" <<'JSON'
+{
+  "name": "luna-worker-local",
+  "interface": {"displayName": "Luna Worker Local"},
+  "plugins": [
+    {
+      "name": "luna-implementation-patterns",
+      "source": {
+        "source": "local",
+        "path": "./plugins/luna-implementation-patterns"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "development"
+    }
+  ]
+}
+JSON
+
+plugin_setup_log="$runtime_home/plugin-setup.log"
+if ! CODEX_HOME="$runtime_home" codex plugin marketplace add \
+  "$runtime_marketplace" >"$plugin_setup_log" 2>&1; then
+  redact_tail "$plugin_setup_log" >&2
+  exit 1
+fi
+if ! CODEX_HOME="$runtime_home" codex plugin add \
+  luna-implementation-patterns@luna-worker-local \
+  >>"$plugin_setup_log" 2>&1; then
+  redact_tail "$plugin_setup_log" >&2
+  exit 1
+fi
+
+raw_jsonl="$runtime_home/worker.jsonl"
+raw_stderr="$runtime_home/worker.stderr"
+metrics_runtime="$runtime_home/metrics.json"
+diagnostic_runtime="$runtime_home/diagnostic.txt"
+rm -f -- "$output_file"
+
+printf '%s\n' 'luna-worker: started (model=gpt-5.6-luna, reasoning=xhigh)' >&2
+started_at="$(date +%s)"
+
+set +e
+
+{
+  printf '%s\n' \
+    'You are the delegated luna_worker, not the resident main agent.' \
+    'Use GPT-5.6 Luna xhigh for this bounded implementation task.' \
+    'Do not delegate or spawn another agent.' \
+    'Applicable repository instructions and authorization boundaries remain binding.' \
+    'Use the available Luna implementation skills when their descriptions match the delegated work.' \
+    'Those skills shape execution only; they never expand the delegation packet or repository authority.' \
+    'Treat the packet soft work budget as one Sol review unit, not as a line-count quota.' \
+    'Stop before adding another independently reviewable behavior, new component, unlisted path class, or materially broader verification; return a suggested split.' \
+    'Do not choose where compatibility adapters or translation logic belong unless the packet explicitly authorizes that design.' \
+    'Stop and return a decision packet if the task exceeds the supplied scope.' \
+    'The resident Codex will independently review your diff and result.' \
+    '' \
+    '--- delegation packet ---'
+  sed -n '1,$p' -- "$rendered_packet"
+} | CODEX_HOME="$runtime_home" codex exec \
+  --model gpt-5.6-luna \
+  --config 'model_reasoning_effort="xhigh"' \
+  --config 'approval_policy="never"' \
+  --sandbox "$worker_sandbox" \
+  --cd "$workspace" \
+  --ephemeral \
+  --json \
+  --output-last-message "$output_file" \
+  - >"$raw_jsonl" 2>"$raw_stderr"
+pipeline_status=("${PIPESTATUS[@]}")
+set -e
+
+prompt_status="${pipeline_status[0]}"
+codex_status="${pipeline_status[1]}"
+launcher_status="$codex_status"
+if [[ "$prompt_status" -ne 0 && "$launcher_status" -eq 0 ]]; then
+  launcher_status="$prompt_status"
+fi
+if [[ "$launcher_status" -eq 0 && ! -s "$output_file" ]]; then
+  launcher_status=70
+fi
+
+scope_guard_stderr="$runtime_home/scope-guard.stderr"
+set +e
+"$guard" check \
+  --packet "$normalized_packet" \
+  --workspace "$workspace" \
+  --before "$preflight_snapshot" \
+  --output "$scope_report" 2>"$scope_guard_stderr"
+scope_status="$?"
+set -e
+if [[ "$scope_status" -eq 78 ]]; then
+  launcher_status=78
+elif [[ "$scope_status" -ne 0 ]]; then
+  launcher_status=70
+  cat -- "$scope_guard_stderr" >>"$raw_stderr"
+fi
+elapsed_seconds="$(( $(date +%s) - started_at ))"
+
+set +e
+python3 - \
+  "$raw_jsonl" \
+  "$raw_stderr" \
+  "$output_file" \
+  "$metrics_runtime" \
+  "$diagnostic_runtime" \
+  "$scope_report" \
+  "$launcher_status" \
+  "$elapsed_seconds" <<'PY'
+from __future__ import annotations
+
+from collections import Counter
+import json
+from pathlib import Path
+import re
+import sys
+
+
+jsonl_path = Path(sys.argv[1])
+stderr_path = Path(sys.argv[2])
+result_path = Path(sys.argv[3])
+metrics_path = Path(sys.argv[4])
+diagnostic_path = Path(sys.argv[5])
+scope_path = Path(sys.argv[6])
+status = int(sys.argv[7])
+elapsed = int(sys.argv[8])
+
+
+def redact(value: str) -> str:
+    value = re.sub(
+        r"(?i)(?:[A-Za-z0-9_./~:-]+/)?auth\.json",
+        "[REDACTED_AUTH_PATH]",
+        value,
+    )
+    value = re.sub(
+        r"(?i)(?:[A-Z0-9_]*(?:API[_-]?KEY|TOKEN|PASSWORD|SECRET)[A-Z0-9_]*\s*=\s*)[^\s,;]+",
+        "[REDACTED_SECRET]",
+        value,
+    )
+    value = re.sub(
+        r"(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]+",
+        "[REDACTED_AUTH_VALUE]",
+        value,
+    )
+    return re.sub(r"\bsk-[A-Za-z0-9_-]{10,}\b", "[REDACTED_API_KEY]", value)
+
+
+event_counts: Counter[str] = Counter()
+usage: dict[str, int] = {}
+errors: list[str] = []
+observed_skills: set[str] = set()
+malformed_lines = 0
+raw_jsonl = jsonl_path.read_text(encoding="utf-8", errors="replace") if jsonl_path.exists() else ""
+for line in raw_jsonl.splitlines():
+    if not line.strip():
+        continue
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        malformed_lines += 1
+        continue
+    if not isinstance(event, dict):
+        event_counts["non_object"] += 1
+        continue
+    event_type = event.get("type")
+    event_counts[event_type if isinstance(event_type, str) else "missing_type"] += 1
+    if event_type == "turn.completed" and isinstance(event.get("usage"), dict):
+        usage = {
+            key: value
+            for key, value in event["usage"].items()
+            if isinstance(key, str) and isinstance(value, int)
+        }
+    item = event.get("item")
+    if isinstance(item, dict) and item.get("type") == "command_execution":
+        command = item.get("command")
+        if isinstance(command, str):
+            observed_skills.update(
+                re.findall(
+                    r"(?:^|[/\\])skills/([A-Za-z0-9][A-Za-z0-9_-]*)/SKILL\.md(?:$|[^A-Za-z0-9_-])",
+                    command,
+                )
+            )
+    if event_type in {"error", "turn.failed"}:
+        error = event.get("message") if event_type == "error" else event.get("error")
+        if isinstance(error, dict):
+            error = error.get("message")
+        if isinstance(error, str):
+            errors.append(error)
+
+raw_stderr = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.exists() else ""
+scope = None
+if scope_path.is_file():
+    try:
+        candidate = json.loads(scope_path.read_text(encoding="utf-8"))
+        if isinstance(candidate, dict):
+            scope = candidate
+    except json.JSONDecodeError:
+        errors.append("Luna scope report was malformed.")
+if status == 78 and scope:
+    unauthorized = scope.get("unauthorized_paths", [])
+    head_changed = bool(scope.get("head_changed"))
+    errors.append(
+        f"Luna scope violation: unauthorized_paths={unauthorized}, "
+        f"head_changed={head_changed}. Changes were not reverted."
+    )
+result_bytes = result_path.stat().st_size if result_path.is_file() else 0
+input_tokens = usage.get("input_tokens", 0)
+cached_input_tokens = usage.get("cached_input_tokens", 0)
+output_tokens = usage.get("output_tokens", 0)
+derived_usage = {
+    "uncached_input_tokens": max(0, input_tokens - cached_input_tokens),
+    "uncached_input_plus_output_tokens": max(0, input_tokens - cached_input_tokens)
+    + output_tokens,
+}
+effective_status = status
+if malformed_lines and effective_status == 0:
+    effective_status = 65
+    errors.append(f"Codex JSONL contained {malformed_lines} malformed line(s).")
+
+metrics = {
+    "schema_version": 1,
+    "status": "succeeded" if effective_status == 0 else "failed",
+    "exit_code": effective_status,
+    "model": "gpt-5.6-luna",
+    "reasoning_effort": "xhigh",
+    "elapsed_seconds": elapsed,
+    "jsonl_bytes": len(raw_jsonl.encode("utf-8")),
+    "stderr_bytes": len(raw_stderr.encode("utf-8")),
+    "result_bytes": result_bytes,
+    "malformed_jsonl_lines": malformed_lines,
+    "event_counts": dict(sorted(event_counts.items())),
+    "observed_skills": sorted(observed_skills),
+    "usage": usage,
+    "derived_usage": derived_usage,
+    "scope": scope,
+}
+metrics_path.write_text(json.dumps(metrics, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+if effective_status != 0:
+    stderr_tail = raw_stderr[-2000:]
+    diagnostic = redact("\n".join([*errors[-3:], stderr_tail]).strip())
+    if len(diagnostic) > 3000:
+        diagnostic = diagnostic[-3000:]
+    diagnostic_path.write_text(diagnostic + ("\n" if diagnostic else ""), encoding="utf-8")
+
+raise SystemExit(0 if effective_status == status else effective_status)
+PY
+processor_status="$?"
+set -e
+
+if [[ "$processor_status" -ne 0 && "$launcher_status" -eq 0 ]]; then
+  launcher_status="$processor_status"
+fi
+
+if [[ -n "$metrics_file" && -s "$metrics_runtime" ]]; then
+  metrics_temporary="$(mktemp "$(dirname -- "$metrics_file")/.luna-metrics.XXXXXX")"
+  cp -- "$metrics_runtime" "$metrics_temporary"
+  chmod 0600 "$metrics_temporary"
+  mv -f -- "$metrics_temporary" "$metrics_file"
+fi
+
+if [[ "$launcher_status" -ne 0 ]]; then
+  printf 'luna-worker: failed (exit=%s, elapsed=%ss)\n' "$launcher_status" "$elapsed_seconds" >&2
+  if [[ -s "$diagnostic_runtime" ]]; then
+    cat -- "$diagnostic_runtime" >&2
+  fi
+  exit "$launcher_status"
+fi
+
+printf 'luna-worker: completed (elapsed=%ss)\n' "$elapsed_seconds" >&2
+cat -- "$output_file"
+if [[ -n "$(tail -c 1 -- "$output_file")" ]]; then
+  printf '\n'
+fi

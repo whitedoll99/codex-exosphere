@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "routing-local-bug",
+  "kind": "routing",
+  "purpose": "Route a clear, testable local correction to the implementation worker.",
+  "request": "The parser currently drops the final item when the input ends with a newline. The expected behavior is documented and a focused regression test already exists. Please assess this request and return the appropriate routing decision.",
+  "output_schema": "routing-output.schema.json",
+  "expectation": {
+    "expected_route": "luna",
+    "required_skills": ["bounded-tdd"],
+    "forbidden_skills": [
+      "architecture-quality-analysis",
+      "contract-design",
+      "domain-model-audit",
+      "interface-boundary-audit",
+      "problem-framing",
+      "review-feedback-triage",
+      "review-packet-preparation",
+      "systematic-diagnosis",
+      "verification-before-reporting"
+    ],
+    "required_findings": [],
+    "allowed_changes": [],
+    "expected_worktree": "clean"
+  }
+}

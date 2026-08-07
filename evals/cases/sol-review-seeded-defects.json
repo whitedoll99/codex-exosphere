@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "id": "sol-review-seeded-defects",
+  "kind": "sol-review",
+  "purpose": "Check that the resident reviewer independently finds seeded scope and edge-case defects.",
+  "fixture": "sol-review-seeded-defects",
+  "output_schema": "review-output.schema.json",
+  "request": "Review the candidate checkout and the accompanying implementation report. Decide whether the change is safe to accept based on the actual diff, tests, and repository state. Return structured findings for every concrete issue you can substantiate.",
+  "expectation": {
+    "expected_route": "sol",
+    "required_skills": [],
+    "forbidden_skills": [],
+    "required_findings": ["scope-creep", "empty-input-regression", "coverage-gap"],
+    "allowed_changes": ["src/normalizer.py", "tests/test_normalizer.py"],
+    "expected_worktree": "changed"
+  }
+}

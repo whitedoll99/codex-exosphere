@@ -1,0 +1,11 @@
+# Portable Codex defaults. Host paths and trust decisions are rendered from
+# config/local.toml; hooks and their trusted hashes are intentionally omitted.
+
+personality = "pragmatic"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "medium"
+
+[plugins."resident-engineering-patterns@personal"]
+enabled = true

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Interface Boundary Audit"
+  short_description: "Audit interface and implementation separation at boundaries"
+  default_prompt: "Use $interface-boundary-audit to assess this interface boundary."
+policy:
+  allow_implicit_invocation: true

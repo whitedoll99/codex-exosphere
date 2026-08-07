@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+codex_home=${CODEX_HOME:-"$HOME/.codex"}
+exec "$codex_home/bin/codex-observe" "$@"

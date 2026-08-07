@@ -1,0 +1,6 @@
+interface:
+  display_name: "Architecture Quality Analysis"
+  short_description: "Analyze quality attributes and architecture tradeoffs"
+  default_prompt: "Use $architecture-quality-analysis to assess these architecture tradeoffs."
+policy:
+  allow_implicit_invocation: true

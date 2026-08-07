@@ -1,0 +1,6 @@
+interface:
+  display_name: "Systematic Diagnosis"
+  short_description: "Diagnose failures with evidence before proposing changes"
+  default_prompt: "Use $systematic-diagnosis to identify the cause without expanding scope."
+policy:
+  allow_implicit_invocation: true

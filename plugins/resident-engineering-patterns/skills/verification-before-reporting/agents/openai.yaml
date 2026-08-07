@@ -1,0 +1,6 @@
+interface:
+  display_name: "Verification Before Reporting"
+  short_description: "Verify evidence before reporting completion or success"
+  default_prompt: "Use $verification-before-reporting to verify this result before reporting it."
+policy:
+  allow_implicit_invocation: true

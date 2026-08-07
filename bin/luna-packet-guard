@@ -1,0 +1,376 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import stat
+import subprocess
+import sys
+from typing import Any, Sequence
+
+
+PACKET_VERSION = 1
+MAX_PACKET_BYTES = 64 * 1024
+MAX_LIST_ITEMS = 64
+MAX_TEXT_LENGTH = 4096
+TOP_LEVEL_FIELDS = {
+    "version",
+    "mode",
+    "objective",
+    "acceptance_criteria",
+    "allowed_changes",
+    "read_only_context",
+    "non_goals",
+    "verification",
+    "authorization",
+    "existing_changes",
+    "soft_budget",
+}
+
+
+class GuardError(Exception):
+    pass
+
+
+def _read_json(path: Path, *, max_bytes: int | None = None) -> Any:
+    if path.is_symlink() or not path.is_file():
+        raise GuardError(f"refusing missing or symlink file: {path}")
+    if max_bytes is not None and path.stat().st_size > max_bytes:
+        raise GuardError(f"packet exceeds {max_bytes} bytes")
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise GuardError(f"invalid JSON file: {path}") from exc
+
+
+def _require_exact_fields(value: dict[str, Any], expected: set[str], label: str) -> None:
+    observed = set(value)
+    if observed != expected:
+        missing = sorted(expected - observed)
+        unknown = sorted(observed - expected)
+        details = []
+        if missing:
+            details.append(f"missing={missing}")
+        if unknown:
+            details.append(f"unknown={unknown}")
+        raise GuardError(f"{label} fields are invalid ({', '.join(details)})")
+
+
+def _require_text(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise GuardError(f"{label} must be non-empty text")
+    if len(value) > MAX_TEXT_LENGTH or "\x00" in value:
+        raise GuardError(f"{label} is too long or contains NUL")
+    return value.strip()
+
+
+def _require_text_list(value: Any, label: str, *, non_empty: bool) -> list[str]:
+    if not isinstance(value, list) or len(value) > MAX_LIST_ITEMS:
+        raise GuardError(f"{label} must be a list of at most {MAX_LIST_ITEMS} items")
+    if non_empty and not value:
+        raise GuardError(f"{label} must not be empty")
+    return [_require_text(item, f"{label} item") for item in value]
+
+
+def _validate_relative_pattern(value: str, label: str, *, allow_glob: bool) -> str:
+    if "\\" in value:
+        raise GuardError(f"{label} must use POSIX separators: {value}")
+    contains_glob = any(character in value for character in "*?[")
+    if not allow_glob and contains_glob:
+        raise GuardError(f"{label} does not allow glob syntax: {value}")
+    if allow_glob and contains_glob and (
+        not value.endswith("/**") or any(character in value[:-3] for character in "*?[")
+    ):
+        raise GuardError(f"{label} allows only an exact path or terminal /**: {value}")
+    path_value = value[:-3] if value.endswith("/**") else value
+    path = PurePosixPath(path_value)
+    if path.is_absolute() or path_value in {"", "."} or ".." in path.parts:
+        raise GuardError(f"{label} must be a safe Git-root-relative path: {value}")
+    if path.parts and path.parts[0] == ".git":
+        raise GuardError(f"{label} must not address .git: {value}")
+    return value
+
+
+def load_packet(path: Path) -> dict[str, Any]:
+    packet = _read_json(path, max_bytes=MAX_PACKET_BYTES)
+    if not isinstance(packet, dict):
+        raise GuardError("packet must be a JSON object")
+    _require_exact_fields(packet, TOP_LEVEL_FIELDS, "packet")
+    if packet["version"] != PACKET_VERSION:
+        raise GuardError(f"packet.version must be {PACKET_VERSION}")
+    if packet["mode"] not in {"implementation", "read-only"}:
+        raise GuardError("packet.mode must be implementation or read-only")
+    packet["objective"] = _require_text(packet["objective"], "objective")
+    for field in ("acceptance_criteria", "non_goals", "verification"):
+        packet[field] = _require_text_list(packet[field], field, non_empty=True)
+    allowed = _require_text_list(
+        packet["allowed_changes"],
+        "allowed_changes",
+        non_empty=packet["mode"] == "implementation",
+    )
+    if packet["mode"] == "read-only" and allowed:
+        raise GuardError("read-only packet must have empty allowed_changes")
+    packet["allowed_changes"] = [
+        _validate_relative_pattern(item, "allowed_changes", allow_glob=True)
+        for item in allowed
+    ]
+    packet["read_only_context"] = [
+        _validate_relative_pattern(item, "read_only_context", allow_glob=True)
+        for item in _require_text_list(
+            packet["read_only_context"], "read_only_context", non_empty=False
+        )
+    ]
+    packet["existing_changes"] = [
+        _validate_relative_pattern(item, "existing_changes", allow_glob=False)
+        for item in _require_text_list(
+            packet["existing_changes"], "existing_changes", non_empty=False
+        )
+    ]
+    if len(set(packet["existing_changes"])) != len(packet["existing_changes"]):
+        raise GuardError("existing_changes contains duplicates")
+
+    authorization = packet["authorization"]
+    if not isinstance(authorization, dict):
+        raise GuardError("authorization must be an object")
+    _require_exact_fields(authorization, {"commit", "push"}, "authorization")
+    if any(not isinstance(authorization[field], bool) for field in ("commit", "push")):
+        raise GuardError("authorization values must be booleans")
+    if authorization != {"commit": False, "push": False}:
+        raise GuardError("packet v1 requires commit=false and push=false")
+
+    budget = packet["soft_budget"]
+    if not isinstance(budget, dict):
+        raise GuardError("soft_budget must be an object")
+    _require_exact_fields(budget, {"review_unit", "stop_conditions"}, "soft_budget")
+    budget["review_unit"] = _require_text(budget["review_unit"], "soft_budget.review_unit")
+    budget["stop_conditions"] = _require_text_list(
+        budget["stop_conditions"], "soft_budget.stop_conditions", non_empty=True
+    )
+    return packet
+
+
+def _render_list(title: str, values: list[str]) -> list[str]:
+    lines = [f"## {title}"]
+    lines.extend(f"- {value}" for value in values)
+    if not values:
+        lines.append("- None")
+    return [*lines, ""]
+
+
+def render_packet(packet: dict[str, Any]) -> str:
+    lines = [
+        "# Luna delegation packet v1",
+        "",
+        f"Mode: {packet['mode']}",
+        "Commit authorized: false",
+        "Push authorized: false",
+        "",
+        "## Objective",
+        packet["objective"],
+        "",
+    ]
+    for title, field in (
+        ("Acceptance criteria", "acceptance_criteria"),
+        ("Allowed changes", "allowed_changes"),
+        ("Read-only context", "read_only_context"),
+        ("Non-goals", "non_goals"),
+        ("Verification", "verification"),
+        ("Existing unrelated changes", "existing_changes"),
+    ):
+        lines.extend(_render_list(title, packet[field]))
+    lines.extend(
+        [
+            "## Soft work budget",
+            packet["soft_budget"]["review_unit"],
+            "",
+            "### Stop conditions",
+            *[f"- {value}" for value in packet["soft_budget"]["stop_conditions"]],
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _run_git(workspace: Path, arguments: Sequence[str]) -> bytes:
+    result = subprocess.run(
+        ["git", "-C", str(workspace), *arguments],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise GuardError(f"Git precondition failed: {' '.join(arguments)}")
+    return result.stdout
+
+
+def _git_root(workspace: Path) -> Path:
+    root = Path(
+        _run_git(workspace, ["rev-parse", "--show-toplevel"])
+        .decode("utf-8", errors="replace")
+        .strip()
+    ).resolve()
+    if root != workspace.resolve():
+        raise GuardError("workspace must be the Git worktree root")
+    return root
+
+
+def _status_paths(workspace: Path) -> dict[str, str]:
+    raw = _run_git(
+        workspace,
+        ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"],
+    )
+    result: dict[str, str] = {}
+    for entry in raw.split(b"\0"):
+        if not entry:
+            continue
+        decoded = entry.decode("utf-8", errors="replace")
+        if len(decoded) < 4:
+            raise GuardError("unexpected git status record")
+        status_code = decoded[:2]
+        path = decoded[3:]
+        _validate_relative_pattern(path, "git status path", allow_glob=False)
+        result[path] = status_code
+    return result
+
+
+def _fingerprint(root: Path, relative: str) -> dict[str, Any]:
+    path = root / relative
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        return {"kind": "missing"}
+    mode = stat.S_IMODE(metadata.st_mode)
+    if stat.S_ISLNK(metadata.st_mode):
+        return {"kind": "symlink", "mode": mode, "target": os.readlink(path)}
+    if stat.S_ISREG(metadata.st_mode):
+        return {
+            "kind": "file",
+            "mode": mode,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "size": metadata.st_size,
+        }
+    if stat.S_ISDIR(metadata.st_mode):
+        return {"kind": "directory", "mode": mode}
+    return {"kind": "other", "mode": mode}
+
+
+def create_snapshot(workspace: Path) -> dict[str, Any]:
+    root = _git_root(workspace)
+    head = _run_git(root, ["rev-parse", "HEAD"]).decode().strip()
+    status = _status_paths(root)
+    return {
+        "schema_version": 1,
+        "head": head,
+        "dirty": {
+            path: {"status": status[path], "fingerprint": _fingerprint(root, path)}
+            for path in sorted(status)
+        },
+    }
+
+
+def _matches_any(path: str, patterns: list[str]) -> bool:
+    return any(
+        path.startswith(f"{pattern[:-3]}/") if pattern.endswith("/**") else path == pattern
+        for pattern in patterns
+    )
+
+
+def validate_preflight(packet: dict[str, Any], snapshot: dict[str, Any]) -> None:
+    dirty = set(snapshot["dirty"])
+    declared = set(packet["existing_changes"])
+    if dirty != declared:
+        missing = sorted(dirty - declared)
+        stale = sorted(declared - dirty)
+        raise GuardError(
+            f"existing_changes mismatch (undeclared={missing}, not_dirty={stale})"
+        )
+    overlap = sorted(
+        path for path in dirty if _matches_any(path, packet["allowed_changes"])
+    )
+    if overlap:
+        raise GuardError(f"allowed_changes overlaps existing dirty paths: {overlap}")
+
+
+def check_postflight(
+    packet: dict[str, Any], before: dict[str, Any], workspace: Path
+) -> tuple[dict[str, Any], int]:
+    after = create_snapshot(workspace)
+    before_dirty = before.get("dirty")
+    if before.get("schema_version") != 1 or not isinstance(before_dirty, dict):
+        raise GuardError("invalid preflight snapshot")
+    paths = set(before_dirty) | set(after["dirty"])
+    touched = sorted(
+        path for path in paths if before_dirty.get(path) != after["dirty"].get(path)
+    )
+    head_changed = before.get("head") != after.get("head")
+    unauthorized = sorted(
+        path for path in touched if not _matches_any(path, packet["allowed_changes"])
+    )
+    report = {
+        "schema_version": 1,
+        "passed": not head_changed and not unauthorized,
+        "head_changed": head_changed,
+        "touched_paths": touched,
+        "unauthorized_paths": unauthorized,
+    }
+    return report, 0 if report["passed"] else 78
+
+
+def _write_json(path: Path, value: Any) -> None:
+    if path.is_symlink():
+        raise GuardError(f"output destination must not be a symlink: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Validate Luna packets and enforce Git scope")
+    commands = parser.add_subparsers(dest="command", required=True)
+    validate = commands.add_parser("validate")
+    validate.add_argument("--packet", type=Path, required=True)
+    validate.add_argument("--render", type=Path, required=True)
+    validate.add_argument("--normalized", type=Path, required=True)
+    snapshot = commands.add_parser("snapshot")
+    snapshot.add_argument("--packet", type=Path, required=True)
+    snapshot.add_argument("--workspace", type=Path, required=True)
+    snapshot.add_argument("--output", type=Path, required=True)
+    check = commands.add_parser("check")
+    check.add_argument("--packet", type=Path, required=True)
+    check.add_argument("--workspace", type=Path, required=True)
+    check.add_argument("--before", type=Path, required=True)
+    check.add_argument("--output", type=Path, required=True)
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    arguments = _parser().parse_args(argv)
+    try:
+        packet = load_packet(arguments.packet)
+        if arguments.command == "validate":
+            if arguments.render.is_symlink():
+                raise GuardError("render destination must not be a symlink")
+            arguments.render.parent.mkdir(parents=True, exist_ok=True)
+            arguments.render.write_text(render_packet(packet), encoding="utf-8")
+            _write_json(arguments.normalized, packet)
+            print(packet["mode"])
+            return 0
+        if arguments.command == "snapshot":
+            snapshot = create_snapshot(arguments.workspace)
+            validate_preflight(packet, snapshot)
+            _write_json(arguments.output, snapshot)
+            return 0
+        if arguments.command == "check":
+            before = _read_json(arguments.before)
+            report, status = check_postflight(packet, before, arguments.workspace)
+            _write_json(arguments.output, report)
+            return status
+        raise GuardError("unsupported command")
+    except GuardError as exc:
+        print(f"luna packet guard: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

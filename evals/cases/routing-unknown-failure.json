@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "routing-unknown-failure",
+  "kind": "routing",
+  "purpose": "Keep an unexplained failure with the resident investigator until its cause is isolated.",
+  "request": "The nightly import sometimes fails after several hours, but the available log only says that a worker stopped. There is no reliable reproduction or known failing component yet. Please assess this request and return the appropriate routing decision.",
+  "output_schema": "routing-output.schema.json",
+  "expectation": {
+    "expected_route": "sol",
+    "required_skills": ["systematic-diagnosis"],
+    "forbidden_skills": [
+      "architecture-quality-analysis",
+      "bounded-tdd",
+      "contract-design",
+      "domain-model-audit",
+      "interface-boundary-audit",
+      "problem-framing",
+      "review-feedback-triage",
+      "review-packet-preparation",
+      "verification-before-reporting"
+    ],
+    "required_findings": [],
+    "allowed_changes": [],
+    "expected_worktree": "clean"
+  }
+}

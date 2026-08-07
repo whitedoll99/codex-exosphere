@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-eval-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["packet_type", "changes_made", "boundary"],
+  "properties": {
+    "packet_type": {"type": "string", "const": "decision"},
+    "changes_made": {"type": "boolean", "const": false},
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unresolved", "owner", "options"],
+      "properties": {
+        "unresolved": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "options": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  }
+}

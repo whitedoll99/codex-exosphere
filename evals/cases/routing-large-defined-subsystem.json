@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "routing-large-defined-subsystem",
+  "kind": "routing",
+  "purpose": "Keep orchestration of a clear but multi-component subsystem with the resident agent so implementation can be split into reviewable rounds.",
+  "request": "Build a complete evaluation subsystem from an approved design. It includes a command-line runner, versioned JSON schemas, isolated Git fixtures, scoring logic, unit tests, bilingual README updates, and an initial live baseline. The behavior and acceptance criteria are settled, and each artifact has concrete verification. Please assess this request and return the appropriate routing decision.",
+  "output_schema": "routing-output.schema.json",
+  "expectation": {
+    "expected_route": "sol",
+    "required_skills": [],
+    "forbidden_skills": [],
+    "required_findings": [],
+    "allowed_changes": [],
+    "expected_worktree": "clean"
+  }
+}

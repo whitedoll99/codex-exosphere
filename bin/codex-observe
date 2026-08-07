@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+from pathlib import Path
+import sys
+
+
+root = Path(__file__).resolve().parents[1]
+for candidate in (root / "lib", root):
+    if candidate.is_dir():
+        sys.path.insert(0, str(candidate))
+
+from codex_observability.cli import main
+
+
+raise SystemExit(main())

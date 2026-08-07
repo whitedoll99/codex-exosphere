@@ -1,0 +1,12 @@
+# Copy this file to config/local.toml and adapt it for one host. `~` is
+# expanded using the --home value passed to the renderer or installer.
+
+network_access = true
+
+trusted_projects = [
+  "~/codex-exosphere",
+]
+
+writable_roots = [
+  "~/codex-exosphere",
+]

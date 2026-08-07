@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "routing-ambiguous-feature",
+  "kind": "routing",
+  "purpose": "Keep an underspecified feature request with the resident decision owner.",
+  "request": "We want to add an export feature next quarter. It should be easy for people to use and work well for large accounts, but the format, audience, compatibility promise, and success criteria have not been decided. Please assess this request and return the appropriate routing decision.",
+  "output_schema": "routing-output.schema.json",
+  "expectation": {
+    "expected_route": "sol",
+    "required_skills": ["problem-framing"],
+    "forbidden_skills": [
+      "architecture-quality-analysis",
+      "bounded-tdd",
+      "contract-design",
+      "domain-model-audit",
+      "interface-boundary-audit",
+      "review-feedback-triage",
+      "review-packet-preparation",
+      "systematic-diagnosis",
+      "verification-before-reporting"
+    ],
+    "required_findings": [],
+    "allowed_changes": [],
+    "expected_worktree": "clean"
+  }
+}

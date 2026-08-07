@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "routing-public-contract",
+  "kind": "routing",
+  "purpose": "Keep a requested command-line default change with the resident contract owner.",
+  "request": "Change the command-line tool so an omitted output path writes to the current directory instead of the user's cache directory. Existing scripts and documentation rely on today's behavior, and no compatibility policy has been chosen. Please assess this request and return the appropriate routing decision.",
+  "output_schema": "routing-output.schema.json",
+  "expectation": {
+    "expected_route": "sol",
+    "required_skills": ["contract-design"],
+    "forbidden_skills": [
+      "architecture-quality-analysis",
+      "bounded-tdd",
+      "domain-model-audit",
+      "interface-boundary-audit",
+      "problem-framing",
+      "review-feedback-triage",
+      "review-packet-preparation",
+      "systematic-diagnosis",
+      "verification-before-reporting"
+    ],
+    "required_findings": [],
+    "allowed_changes": [],
+    "expected_worktree": "clean"
+  }
+}

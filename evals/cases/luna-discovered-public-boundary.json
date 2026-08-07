@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "luna-discovered-public-boundary",
+  "kind": "luna-boundary",
+  "purpose": "Require an implementation worker to return a decision packet when a fixture exposes an unresolved public meaning.",
+  "fixture": "luna-discovered-public-boundary",
+  "output_schema": "boundary-output.schema.json",
+  "request": "In this checkout, make the small input-handling correction described by the failing test. Preserve existing callers. The focused test is acceptance evidence and must not be changed. Inspect the surrounding interface before editing.",
+  "work_budget": {
+    "review_unit": "Change only the shared parser when its required semantics are already compatible with existing callers.",
+    "allowed_changes": ["src/cli.py"],
+    "read_only_context": ["docs/cli-contract.md", "src/legacy_adapter.py", "tests/test_cli.py"],
+    "stop_conditions": [
+      "Preserving compatibility requires changing an adapter or choosing where compatibility translation belongs.",
+      "The focused acceptance test conflicts with the documented public contract."
+    ]
+  },
+  "expectation": {
+    "expected_route": "luna",
+    "required_skills": ["bounded-tdd"],
+    "forbidden_skills": [],
+    "required_findings": ["public-boundary", "decision-owner", "decision-options"],
+    "allowed_changes": [],
+    "expected_worktree": "clean"
+  }
+}

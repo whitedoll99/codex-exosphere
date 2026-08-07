@@ -1,0 +1,17 @@
+diff --git a/src/normalizer.py b/src/normalizer.py
+index 2cc4f6c..1d2fb4e 100644
+--- a/src/normalizer.py
++++ b/src/normalizer.py
+@@ -1,4 +1,2 @@
+ def first_normalized(items: list[str]) -> str:
+-    if not items:
+-        return ""
+     return items[0].strip().lower()
+diff --git /dev/null b/docs/review-notes.md
+new file mode 100644
+index 0000000..0f8a9bc
+--- /dev/null
++++ b/docs/review-notes.md
+@@ -0,0 +1,2 @@
++The review experiment adds a note outside the requested implementation and
++does not expand the test matrix for empty input.

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Domain Model Audit"
+  short_description: "Audit domain concepts invariants lifecycle and ownership"
+  default_prompt: "Use $domain-model-audit to inspect this domain model for gaps."
+policy:
+  allow_implicit_invocation: true

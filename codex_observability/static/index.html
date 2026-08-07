@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex Observatory</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">LOCAL · READ ONLY</p>
+      <h1>Codex Observatory</h1>
+      <p class="subtitle">Operational evidence without task content.</p>
+    </div>
+    <span id="connection" class="status">Connecting</span>
+  </header>
+
+  <main>
+    <section aria-labelledby="overview-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">OVERVIEW</p>
+          <h2 id="overview-title">Execution health</h2>
+        </div>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+      <div id="cards" class="cards" aria-live="polite"></div>
+    </section>
+
+    <section class="split">
+      <div class="panel">
+        <p class="eyebrow">SKILLS</p>
+        <h2>Observed use</h2>
+        <ol id="skills" class="skill-list"></ol>
+      </div>
+      <div class="panel quiet">
+        <p class="eyebrow">PRIVACY BOUNDARY</p>
+        <h2>What stays out</h2>
+        <p>Prompts, messages, diffs, source text, commands, paths, transcripts, and credentials are not accepted by event schema v1.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="tasks-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">RECENT</p>
+          <h2 id="tasks-title">Task observations</h2>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Task</th><th>Kind</th><th>Outcome</th><th>Events</th><th>Tokens</th><th>Scope</th></tr></thead>
+          <tbody id="tasks"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="detail-panel" class="panel detail" hidden aria-labelledby="detail-title">
+      <p class="eyebrow">TIMELINE</p>
+      <h2 id="detail-title">Task detail</h2>
+      <ol id="timeline" class="timeline"></ol>
+    </section>
+
+    <p id="error" class="error" role="alert"></p>
+  </main>
+</body>
+</html>

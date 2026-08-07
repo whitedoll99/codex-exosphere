@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-eval-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["route", "findings", "read_only_confirmed"],
+  "properties": {
+    "route": {"type": "string", "enum": ["sol", "luna"]},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "summary"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "summary": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "read_only_confirmed": {"type": "boolean"}
+  }
+}

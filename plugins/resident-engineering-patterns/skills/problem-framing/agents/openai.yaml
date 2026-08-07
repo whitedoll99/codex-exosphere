@@ -1,0 +1,6 @@
+interface:
+  display_name: "Problem Framing"
+  short_description: "Frame the problem and success criteria before design"
+  default_prompt: "Use $problem-framing to clarify this problem without selecting an implementation."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Feedback Triage"
+  short_description: "Classify review feedback before changing implementation"
+  default_prompt: "Use $review-feedback-triage to assess these review findings."
+policy:
+  allow_implicit_invocation: true

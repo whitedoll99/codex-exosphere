@@ -1,0 +1,6 @@
+interface:
+  display_name: "Bounded TDD"
+  short_description: "Apply test-first changes within an already approved scope"
+  default_prompt: "Use $bounded-tdd for this approved local implementation."
+policy:
+  allow_implicit_invocation: true

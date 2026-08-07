@@ -1,0 +1,6 @@
+interface:
+  display_name: "Contract Design"
+  short_description: "Define observable contracts and failure semantics"
+  default_prompt: "Use $contract-design to analyze the approved boundary contract."
+policy:
+  allow_implicit_invocation: true

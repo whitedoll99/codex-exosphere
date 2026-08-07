@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "routing-architecture-tradeoff",
+  "kind": "routing",
+  "purpose": "Keep a quality-attribute comparison with the resident architecture decision owner.",
+  "request": "We can either add a queue between the API and the worker or keep the synchronous path and add batching. Compare the alternatives for reliability, latency, operations, and future scale, then recommend an approach. Please assess this request and return the appropriate routing decision.",
+  "output_schema": "routing-output.schema.json",
+  "expectation": {
+    "expected_route": "sol",
+    "required_skills": ["architecture-quality-analysis"],
+    "forbidden_skills": [
+      "bounded-tdd",
+      "contract-design",
+      "domain-model-audit",
+      "interface-boundary-audit",
+      "problem-framing",
+      "review-feedback-triage",
+      "review-packet-preparation",
+      "systematic-diagnosis",
+      "verification-before-reporting"
+    ],
+    "required_findings": [],
+    "allowed_changes": [],
+    "expected_worktree": "clean"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-eval-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["route", "selected_skills", "rationale"],
+  "properties": {
+    "route": {"type": "string", "enum": ["sol", "luna"]},
+    "selected_skills": {"type": "array", "items": {"type": "string"}},
+    "rationale": {"type": "string"}
+  }
+}

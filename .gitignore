@@ -1,0 +1,14 @@
+config/local.toml
+config/generated.toml
+*.local.toml
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+evals/results/
+build/
+dist/
+install-state.json
+*.bak
+*.bak-*
+/AGENTS.md
