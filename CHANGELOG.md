@@ -19,6 +19,10 @@ everything since that extraction.
 - A `Verified scope and limitations` section in both READMEs, recording what
   the end-to-end run covered, the six areas it did not, and two behaviours that
   look like defects and are not (`dbd2aea`).
+- Continuous integration: the test suite, an install plan, and validation of
+  the example packet, on the documented minimum Python and one version above
+  it. Running the suite locally leaves fifteen ignored bytecode files behind,
+  which is how a working tree drifts without `git status` noticing.
 
 ### Changed
 

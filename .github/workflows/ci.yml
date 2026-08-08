@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is the documented minimum; 3.12 catches anything that
+        # only holds on the version this was developed against.
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No third-party package is required, so there is nothing to install.
+
+      - name: Run the test suite
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Plan an install against a throwaway home
+        run: |
+          python3 bootstrap/install.py \
+            --home "$RUNNER_TEMP/exosphere-home" \
+            --codex-home "$RUNNER_TEMP/exosphere-home/.codex"
+
+      - name: Validate the example packet
+        # The README tells readers to copy this file, so a broken example
+        # breaks the first thing anyone does after installing.
+        run: |
+          python3 bin/luna-packet-guard validate \
+            --packet docs/luna-packet.example.json \
+            --render "$RUNNER_TEMP/packet.md" \
+            --normalized "$RUNNER_TEMP/packet.normalized.json"
