@@ -1,308 +1,448 @@
 # codex-exosphere
 
-`codex-exosphere` is a single-user Codex development harness. It keeps judgment and final acceptance with the resident Codex while delegating clear, bounded implementation work to a Luna worker.
+**A Codex CLI development harness that keeps judgment with GPT-5.6 Sol while delegating implementation to the lower-cost GPT-5.6 Luna.**
+
+Sol concentrates on framing the request, investigation, design, splitting the work, and final review. Once the behavior and the change boundary are settled, the implementation goes to Luna. Luna's changes are checked against Git, and Sol confirms the actual diff and test results before anything is reported as done.
+
+The harness also ships development Skills for problem framing, diagnosis, TDD, design analysis, review, and verification. It is not only model routing: the goal is **a development environment that raises the quality of Sol's and Luna's work**.
 
 [日本語](README.md)
 
-Detailed documents under `docs/` are currently maintained primarily in Japanese; this English README covers installation and the supported first-use path.
+---
 
-## What it provides
+## Why you would want this
 
-- Global Codex working agreements and Sol/Luna/Terra model routing.
-- A version 1 delegation packet and preflight/postflight Git-scope checks.
-- A guarded Luna launcher running in a temporary `CODEX_HOME`.
-- An optional Terra reviewer for large, read-heavy diffs.
-- Ten Skills for diagnosis, verification, TDD, problem framing, and contract, architecture, domain, and interface analysis.
-- A content-free operational event store, CLI, and read-only WebUI.
-- An isolated evaluation harness for routing and review quality.
-- Plan/apply/verify/uninstall bootstrap commands.
+### 1. Use the lower-cost Luna as your implementation worker
 
-The harness does not trust a worker's success report by itself. The resident Codex independently checks the actual diff, scope, non-goals, edge cases, compatibility, and test evidence and owns the final report.
+GPT-5.6 Sol is capable, but there is no need to make Sol write every line.
 
-## Operating profile
+In codex-exosphere, Sol understands the problem and organizes the work, then delegates implementation units that need little judgment to GPT-5.6 Luna. Under the current Codex pricing, Luna costs less than Sol ([Codex rate card](https://help.openai.com/en/articles/20001106-codex-rate-card)).
 
-The default profile is a single developer installing the harness in their own Linux environment. Public source distribution does not turn separate installations into a shared trust boundary. Multi-user services, enterprise RBAC, and Internet-facing deployment are outside the default scope.
+```text
+User
+  │
+  ▼
+GPT-5.6 Sol
+  │
+  ├─ framing
+  ├─ investigation and design
+  ├─ splitting the work
+  │
+  └─ implementable unit
+          │
+          ▼
+     GPT-5.6 Luna
+          │
+          ▼
+   implementation / tests
+          │
+          ▼
+      GPT-5.6 Sol
+       final review
+```
 
-Projects may place a small `Operating context` in a local root `AGENTS.md` when design and review severity need to reflect actual users, scale, trust boundaries, and failure risks. The absence of a profile is not an error.
+You do not drive Luna yourself. Ask Sol for the work as usual, and Sol decides whether to delegate it at all.
 
-Automation safety remains applicable at every scale. Worker scope, unrelated changes, commit and push authority, the actual diff, and fresh verification are always checked.
+### 2. Improve how Sol and Luna actually work
 
-## Responsibility boundaries
+codex-exosphere includes a set of Skills for software development.
 
-- The user owns product direction, goal scope, and irreversible or external-impact decisions.
-- The resident Codex owns scope, delegation decisions, actual-diff review, verification, and the final report.
-- Luna performs only bounded implementation with settled acceptance criteria and allowed paths.
-- The Terra reviewer is an optional read-only advisory pass and never becomes the acceptance owner.
-- Skills and model routing do not grant authority. Commit, push, release, and external-state changes require separate authorization.
+For example:
 
-## Requirements
+* If the request is still vague, organize it before implementing (`problem-framing`)
+* If the cause is unknown, narrow it from evidence instead of guessing at a fix (`systematic-diagnosis`)
+* If the change is clear and local, implement it against a focused test (`bounded-tdd`)
+* Look at the actual diff and fresh verification, not at a "done" self-report (`verification-before-reporting`)
 
-- Python 3.10 or newer; no third-party Python package is required.
-- Bash, Git, and the Codex CLI.
-- A Codex CLI with local marketplaces and `plugin add` / `plugin remove`.
-- An existing Codex login or another credential accepted by Codex.
+All ten Skills are listed under [Engineering Skills](#engineering-skills).
 
-Authentication is never copied into or generated by this repository.
+Skills are selected implicitly for the task, so you normally do not name one.
 
-## Quick start
+### 3. Delegating to Luna does not mean letting it run loose
+
+Luna is not a separate process free to change whatever it likes.
+
+Each delegated task carries what to implement, what counts as done, which paths may change, what must not change, the verification to run, and the conditions under which Luna must stop and hand the decision back.
+
+The launcher also compares Git state before and after the run, so changes outside the declared scope, or a commit, are detected.
+
+Luna reporting success is not completion.
+
+**Sol confirms the actual diff and the verification result before reporting anything back to you.**
+
+---
+
+## Quick Start
+
+### Requirements
+
+Linux is the primary target.
+
+You need:
+
+* Python 3.10+
+* Bash
+* Git
+* Codex CLI
+* A working Codex authentication
+
+No third-party Python packages are required.
+
+### Install
 
 ```bash
 git clone https://github.com/whitedoll99/codex-exosphere.git ~/codex-exosphere
 cd ~/codex-exosphere
+```
 
-# Print the plan. Nothing is written.
+First, see what would be installed.
+
+```bash
 python3 bootstrap/install.py
+```
 
-# Apply it.
+This phase changes nothing.
+
+If the plan looks right, apply it.
+
+```bash
 python3 bootstrap/install.py --apply
+```
 
+Then verify.
+
+```bash
 python3 bootstrap/verify.py
 ```
 
-That is the whole installation. No configuration file is required.
+That completes the basic setup.
 
-The two install steps are separate on purpose. The first run only prints what
-it would do. The second stops rather than overwrite anything, so every
-destination must be missing or already identical.
+Installation writes files under `$CODEX_HOME`, `$HOME/.local/bin`, and `$HOME/plugins`. See [Managed paths](docs/managed-paths.md) for the exact mapping.
 
-### Installing into an existing Codex environment
+An existing `$CODEX_HOME/AGENTS.md` is never overwritten or auto-merged. If the plan reports `CONFLICT`, do not proceed to `--apply`; follow [Install into an existing Codex environment](docs/install-existing-environment.md).
 
-The bootstrap installs the bundle as a no-clobber unit and does not merge an
-existing global `AGENTS.md`. It supports `$CODEX_HOME/AGENTS.md` only when that
-path is missing or byte-for-byte identical to this repository's
-`config/AGENTS.md`. Different content produces `CONFLICT` and stops the entire
-install.
+### Use
 
-If the plan reports `CONFLICT`, do not continue to `--apply`. Back up the
-existing file and compare both versions. Only if you decide to adopt this
-repository's global guidance should you move the existing file outside the
-managed destination and run the plan again. If you keep the existing guidance,
-stop: the bootstrap does not support a partial install or automatic merge.
-
-### First resident Codex → Luna run
-
-After installation, close any running Codex session and start a new one in the
-Git repository you want to change. This loads the installed global `AGENTS.md`,
-agent definitions, and Skills into the new session.
+Start Codex normally, inside the Git repository you want to work in.
 
 ```bash
-cd /path/to/your-git-repository
+cd /path/to/your-project
 codex
 ```
 
-Choose a small, already reproducible local task. Tell Codex the observable
-acceptance criterion, allowed paths, focused test, and that commit and push are
-not authorized. For example:
+Then ask for the work the way you normally would.
 
 ```text
-Fix one reproduced local bug. Completion means the specified focused test
-passes. Limit changes to the related implementation file and test, and do not
-commit or push. If the task qualifies for Luna delegation, use the guarded
-launcher, then independently inspect the actual diff and fresh test before
-reporting.
+Saving on the settings screen does not apply the change.
+Find the cause, fix it, and run the related tests.
 ```
 
-The resident Codex decides whether the task qualifies, and when it does, owns
-packet creation, the guarded worker run, actual-diff review, and fresh
-verification. A task that stays with the resident is not a routing failure. The
-packet commands below are the lower-level interface for inspecting or manually
-reproducing this workflow.
+You normally do not need to:
 
-Bootstrap, packet validation, and plugin add/remove have been verified in an
-isolated environment. An authenticated model run immediately after a fresh
-public install has not. This section documents the intended first-use path; it
-does not claim that the remaining model E2E has already passed.
+* start Luna
+* write a delegation packet
+* choose a Skill
+* drive the launcher directly
 
-Codex Observatory records these runs afterwards, and the evaluation harness
-matters only when changing skill routing.
+Sol organizes the task, uses Skills where they apply, and decides whether the work is eligible for delegation.
 
-### Optional: render the Codex `config.toml`
+---
 
-Pass `--local-config` to have the installer render `config.toml` as well.
+## How it works
 
-```bash
-cp config/local.example.toml config/local.toml
-$EDITOR config/local.toml
-python3 bootstrap/install.py --local-config config/local.toml --apply
+codex-exosphere separates models by role rather than by rank.
+
+| Model             | Role                                                                   |
+| ----------------- | ---------------------------------------------------------------------- |
+| **GPT-5.6 Sol**   | Framing, investigation, design, work splitting, judgment, final review  |
+| **GPT-5.6 Luna**  | Implementation once behavior and boundary are settled                   |
+| **GPT-5.6 Terra** | Optional read-heavy additional review                                   |
+
+The idea is simple.
+
+> **Use Sol for judgment.
+> Use Luna for implementation.
+> Let Sol verify the result.**
+
+### Work Sol keeps
+
+Sol holds work such as:
+
+* requests that are still underspecified
+* failures whose cause is not yet isolated
+* architecture decisions
+* public API and CLI design
+* schema and migration
+* compatibility judgment
+* security and privacy changes
+* large work spanning multiple components
+
+### Work Luna receives
+
+Luna suits work such as:
+
+* a reproduced, local defect fix
+* implementation that follows an existing pattern
+* changes confirmable by a focused test
+* work whose change boundary can be stated exactly
+
+If a design decision or a scope extension turns out to be necessary mid-task, Luna returns it to Sol instead of deciding on its own.
+
+### The delegation cycle
+
+```text
+Sol
+ │
+ │ bounded task
+ ▼
+┌──────────────────┐
+│ Luna launcher    │
+│                  │
+│ preflight check  │
+└────────┬─────────┘
+         │
+         ▼
+   GPT-5.6 Luna
+         │
+         ▼
+┌──────────────────┐
+│ Git scope check  │
+└────────┬─────────┘
+         │
+         ▼
+        Sol
+  diff / test review
 ```
 
-`config/local.toml` is untracked. It supports exactly three top-level keys:
+The packet schema, the preflight and postflight checks, and the manual interface are documented in the [Luna delegation contract](docs/luna-delegation-contract.md).
 
-```toml
-network_access = true
-trusted_projects = ["~/codex-exosphere"]
-writable_roots = ["~/codex-exosphere"]
+### Authority
+
+Model routing grants no authority. Commit, push, release, deployment, and other external changes still require their normal authorization. See [Responsibility boundaries](docs/responsibility-boundaries.md).
+
+---
+
+## Why an external Luna worker?
+
+As of 2026-08-08, Luna is registered as Multi-Agent V1 in Codex and cannot be spawned directly as a V2 native subagent ([openai/codex#34700](https://github.com/openai/codex/issues/34700)).
+
+Given that constraint, codex-exosphere runs Luna as an independent ephemeral Codex process placed under Sol's control. This is not the point of the product; it is the reason for the current implementation approach.
+
+Conceptually:
+
+```text
+GPT-5.6 Sol
+      │
+      │ guarded delegation
+      ▼
+run-luna-worker
+      │
+      ▼
+temporary CODEX_HOME
+      │
+      ▼
+codex exec --model gpt-5.6-luna
+      │
+      ▼
+GPT-5.6 Luna
 ```
 
-Paths must be absolute or begin with `~/`. The renderer rejects unknown keys.
+It is not merely another Codex CLI invocation. The Luna environment additionally:
 
-### Optional: verify the installed plugin
+* loads only the Skills needed for implementation
+* states the task scope explicitly
+* records Git state beforehand
+* checks the changed paths afterwards
+* returns a bounded result to Sol
 
-`verify.py --installed` additionally checks effective plugin selection, which
-it reads through the Codex CLI. It therefore needs a working CLI and an
-installed plugin, unlike the commands above.
+---
 
-```bash
-python3 bootstrap/verify.py --installed
+## Engineering Skills
+
+Skills are not prompt samples. They are development workflows Codex uses when it meets a particular kind of problem.
+
+### Included Skills
+
+| Skill                           | Purpose                                            |
+| ------------------------------- | -------------------------------------------------- |
+| `problem-framing`               | Turn a vague request into an implementable problem  |
+| `systematic-diagnosis`          | Diagnose a defect from evidence                     |
+| `bounded-tdd`                   | Implement a clear local change test-first           |
+| `contract-design`               | Design API and CLI contracts                        |
+| `architecture-quality-analysis` | Compare architecture options                        |
+| `domain-model-audit`            | Audit the domain model                              |
+| `interface-boundary-audit`      | Audit interface boundaries                          |
+| `review-feedback-triage`        | Check whether review findings hold                  |
+| `review-packet-preparation`     | Prepare material for independent review             |
+| `verification-before-reporting` | Verify before reporting completion                  |
+
+Sol uses these as the situation calls for them.
+Luna receives only the implementation Skills; design and final judgment stay with Sol.
+
+### How a Skill shapes the work
+
+For an unexplained failure, `systematic-diagnosis` drives:
+
+```text
+symptom
+ ↓
+minimal reproduction
+ ↓
+evidence at each boundary
+ ↓
+hypothesis
+ ↓
+falsifiable check
+ ↓
+root cause
 ```
 
-## Luna delegation
+For a clear implementation, `bounded-tdd` drives:
 
-Write-capable delegation uses the guarded launcher. Start from the example
-packet: every field is required and unknown fields are rejected, so a
-hand-written packet rarely validates on the first try.
-
-```bash
-cp docs/luna-packet.example.json /tmp/luna-packet.json
-$EDITOR /tmp/luna-packet.json
-
-# Check the packet before spending a model call. The rendered file shows
-# exactly what Luna will receive.
-~/.codex/bin/luna-packet-guard validate \
-  --packet /tmp/luna-packet.json \
-  --render /tmp/luna-packet.md \
-  --normalized /tmp/luna-packet.normalized.json
-
-~/.codex/bin/run-luna-worker \
-  --cd /path/to/git-worktree \
-  --packet-file /tmp/luna-packet.json \
-  --output /tmp/luna-result.md \
-  --metrics /tmp/luna-metrics.json
+```text
+failing test
+    ↓
+minimum implementation
+    ↓
+passing test
+    ↓
+broader verification
 ```
 
-The launcher:
+At completion, `verification-before-reporting` looks at the current diff and fresh evidence rather than stale test output or a worker's self-report.
 
-1. validates version 1 packet shape, size, paths, and authorization before model startup;
-2. records existing dirty state and HEAD;
-3. exposes only implementation Skills in a temporary `CODEX_HOME`;
-4. checks HEAD, changed paths, modes, and symlinks after the run;
-5. keeps raw JSONL and stderr temporary and returns only a bounded result plus content-free metrics; and
-6. fails closed without automatically reverting evidence.
+Skill routing itself can be evaluated. See the [Skill routing eval design](docs/skill-routing-eval-design.md) and the [2026-07-16 baseline](docs/skill-routing-eval-baseline-2026-07-16.md).
 
-See [`docs/luna-delegation-contract.md`](docs/luna-delegation-contract.md) for packet fields and stop conditions. The launcher does not accept the worker's diff. Resident Codex review is a separate gate.
+---
 
 ## Optional Terra review
 
-`terra_reviewer` can be evaluated for large but bounded diffs, regression scans, and checklist-heavy read-only review. It is not mandatory for ordinary local work and does not replace the resident Codex review gate. Confirm the effective runtime is read-only before describing that boundary as mechanically enforced.
+GPT-5.6 Terra is not meant for every change.
 
-## Codex Observatory
+It is available as an additional reviewer for large diffs, regression scans, and reviews that require reading many files.
 
-Codex Observatory stores only bounded operational facts about tasks, delegation, reviews, Skills, token usage, and scope. Its event schema rejects prompts, messages, diffs, source text, commands, paths, transcripts, and credentials.
+Terra is configured to run in a read-only sandbox and is instructed not to modify the workspace. Because a runtime setting can supersede that default, confirm the boundary in [Responsibility boundaries](docs/responsibility-boundaries.md) when it matters.
+
+Terra's opinion is not a decision either. Sol checks each finding against actual repository evidence and decides its disposition.
+
+---
+
+## Observatory
+
+Codex Observatory is a lightweight local view of what codex-exosphere did.
+
+It records operational events such as tasks, delegations, reviews, Skill use, and usage.
+
+It does not store the content itself:
+
+* prompts
+* source code
+* diffs
+* credentials
 
 ```bash
-codex-observe emit --file /tmp/event.json
-codex-observe import-luna \
-  --metrics /tmp/luna-metrics.json \
-  --task-id task-001 --run-id run-001 --event-id event-001 \
-  --occurred-at 2026-07-16T12:00:00Z --task-kind implementation
 codex-observe summary
 codex-observe tasks --limit 20
 codex-observe serve
 ```
 
-The database defaults to `$XDG_STATE_HOME/codex-observability/events.sqlite3`, or `$HOME/.local/state/codex-observability/events.sqlite3` when XDG state is unset. The WebUI is read-only and its API requires a per-process ephemeral bearer. See [`docs/observability-foundation-design.md`](docs/observability-foundation-design.md) for the full contract.
+See the [Observability foundation design](docs/observability-foundation-design.md).
+
+---
 
 ## Evaluation
 
-Offline commands do not call a model:
+The harness includes an eval harness so that model and Skill routing can be checked against actual behavior, not only against configuration.
+
+The ordinary commands call no model.
 
 ```bash
 python3 evals/run.py list
 python3 evals/run.py validate
-python3 evals/run.py plan
+python3 evals/run.py plan --case routing-local-bug
 ```
 
-Model calls happen only through an explicit `live --case CASE_ID`. See [`docs/skill-routing-eval-design.md`](docs/skill-routing-eval-design.md) for the scoring design and [`docs/skill-routing-eval-baseline-2026-07-16.md`](docs/skill-routing-eval-baseline-2026-07-16.md) for the first baseline.
+A live evaluation is explicit.
 
-## Managed paths
+```bash
+python3 evals/run.py live \
+  --case routing-local-bug \
+  --output /tmp/codex-eval-routing-local-bug
+```
 
-| Versioned source | Default deployment |
-| --- | --- |
-| `config/AGENTS.md` | `$CODEX_HOME/AGENTS.md` |
-| `agents/luna_worker.toml` | `$CODEX_HOME/agents/luna_worker.toml` |
-| `agents/terra_reviewer.toml` | `$CODEX_HOME/agents/terra_reviewer.toml` |
-| `bin/run-luna-worker` | `$CODEX_HOME/bin/run-luna-worker` |
-| `bin/luna-packet-guard` | `$CODEX_HOME/bin/luna-packet-guard` |
-| `bin/codex-observe` | `$CODEX_HOME/bin/codex-observe` |
-| `bin/codex-observe-shim` | `$HOME/.local/bin/codex-observe` |
-| `codex_observability` | `$CODEX_HOME/lib/codex_observability` |
-| `plugins/resident-engineering-patterns` | `$HOME/plugins/resident-engineering-patterns` |
-| `config/config.base.toml` + `config/local.toml` | `$CODEX_HOME/config.toml` |
+This observes routing, Skill selection, Luna's scope judgment, and Sol's diff review.
 
-The installer stores ownership and digests in `~/.local/state/codex-exosphere/install-state.json`. It never overwrites a different existing artifact. Uninstall removes only artifacts created by the installer and unchanged since installation.
+---
 
-## Verify and uninstall
+## Verify / Uninstall
+
+Check the installed state:
 
 ```bash
 python3 bootstrap/verify.py
-python3 bootstrap/verify.py --installed
-python3 -m unittest discover -s tests -v
+```
 
-# Uninstall plans by default.
+Uninstall plan:
+
+```bash
 python3 bootstrap/uninstall.py
+```
+
+Apply the removal:
+
+```bash
 python3 bootstrap/uninstall.py --apply
 ```
 
-A `CONFLICT` is not an instruction to force overwrite. Inspect the repository and deployed versions and select the intended source manually.
+Files the installer does not own are never removed unconditionally.
+
+---
+
+## Documentation
+
+The README covers what you need for ordinary use. Internal contracts, design decisions, evaluation methods, and measured results live in `docs/`.
+
+Documents under `docs/` are currently maintained primarily in Japanese; this English README covers installation and the supported first-use path.
+
+* [Luna delegation contract](docs/luna-delegation-contract.md) — delegation packet, Git scope guard, manual interface
+* [Luna worker efficiency design](docs/luna-worker-efficiency-design.md) — Luna work units and context efficiency
+* [Skill routing eval design](docs/skill-routing-eval-design.md) — Skill and model routing evaluation
+* [Observability foundation design](docs/observability-foundation-design.md) — Observatory design
+* [Managed paths](docs/managed-paths.md) — exactly what installation writes
+* [Install into an existing Codex environment](docs/install-existing-environment.md) — handling `CONFLICT`
+* [Responsibility boundaries](docs/responsibility-boundaries.md) — ownership, authority, and effective sandboxing
+* [Verified scope and limitations](docs/verified-scope.md) — what is verified and what is not
+
+---
 
 ## Repository layout
 
 ```text
-agents/       custom agent definitions
-bin/          guarded launchers and CLI shims
-bootstrap/    renderer, installer, verifier, uninstaller
-codex_observability/  content-free event model, store, CLI, WebUI
-config/       portable defaults and host-local example
-docs/         contracts, decisions, and evaluation notes
-evals/        isolated routing and review evaluation
-plugins/      resident engineering Skill source
-tests/        isolated contract and bootstrap tests
+agents/                 Luna / Terra agent definitions
+bin/                    Luna launcher and command shims
+bootstrap/              install / verify / uninstall
+codex_observability/    Observatory
+config/                 Codex configuration
+docs/                   contracts, designs and baselines
+evals/                  Skill / model routing evaluation
+plugins/                engineering Skills
+tests/                  tests
 ```
 
-## Safety boundary
+---
 
-Do not add:
+## Current status
 
-- `auth.json`, API keys, OAuth tokens, `.env`, or private keys;
-- Codex session JSONL, runtime logs, caches, or plugin caches;
-- memory or message databases, backups, or queue data; or
-- snapshots of an entire home directory.
+codex-exosphere currently targets a **personal Linux development environment**.
 
-This boundary does not assume a hostile multi-user environment. It separates portable source from credentials and runtime state and protects existing work from automation mistakes.
+The bootstrap, install, verification, and uninstall paths have been exercised end to end in an isolated Linux environment. However, **a fresh authenticated model run by Sol, Luna, or Terra immediately after installing the public release has not been verified yet.**
 
-## Verified scope and limitations
+macOS and Windows are not primary verification targets at this point, and behavior may change with Codex CLI or model-side updates.
 
-The install, verification, and uninstall paths were exercised end to end on
-2026-08-08 in a disposable Linux environment, with `HOME`, `CODEX_HOME`, and
-`XDG_STATE_HOME` redirected to temporary directories. That run covered the plan
-and apply phases, repository and installed verification, plugin add and remove
-through an existing Codex CLI, uninstall, and the full 66-test suite. The
-repository was also scanned for absolute paths, symlinks, and parent-directory
-traversal tied to the machine it was extracted from, and the scan reported no
-such dependency.
+Details of what is verified and what is not are in [Verified scope and limitations](docs/verified-scope.md).
 
-The following remain unverified.
-
-- A separate physical machine or container, and any Linux distribution other
-  than the one used for that run.
-- Installing the Codex CLI from scratch. The run used an already-installed
-  `codex-cli 0.147.0`.
-- Provisioning a fresh Codex login, and any authenticated model execution.
-- Actual Luna, Terra, or Sol model invocation after installation.
-- The official plugin validator, which was unavailable in the test environment
-  and reported `SKIP` during both repository and installed verification.
-- macOS, Windows, and compatibility with future Codex CLI releases.
-
-Two behaviours are intentional rather than defects.
-
-- `uninstall.py` removes managed files, the marketplace entry, the install
-  state, and the installed plugin, but leaves empty parent directories such as
-  `.codex/agents` and `.codex/bin`. Those directories belong to the Codex CLI,
-  and removing them could damage an installation this project does not own.
-- `verify.py --installed` requires the Codex CLI, because it checks effective
-  plugin selection. Repository verification and the install payload itself do
-  not.
+---
 
 ## License
 
-The project is available under the [MIT License](LICENSE). See [`plugins/resident-engineering-patterns/THIRD_PARTY_NOTICES.md`](plugins/resident-engineering-patterns/THIRD_PARTY_NOTICES.md) for third-party provenance and notices.
+MIT License

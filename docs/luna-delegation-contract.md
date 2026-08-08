@@ -53,6 +53,34 @@ run-luna-worker \
 
 旧`--prompt-file`はwrite-capableなfail-open経路を残すため廃止する。指定時はmodelを呼ばずmigration errorを返す。
 
+## 手動でpacketを扱う
+
+通常の利用ではSolがpacketを作成するため、この節の操作は不要である。packetの内容を検査
+したい場合、または委譲工程を手動で再現したい場合にだけ使う。
+
+全fieldが必須で未知fieldは拒否されるため、手書きしたpacketが一度で通ることはまずない。
+[`luna-packet.example.json`](luna-packet.example.json)を起点にする。
+
+```bash
+cp docs/luna-packet.example.json /tmp/luna-packet.json
+$EDITOR /tmp/luna-packet.json
+
+# model呼び出しの前にpacketを検査する。renderされたファイルには
+# Lunaが実際に受け取る内容がそのまま出る
+~/.codex/bin/luna-packet-guard validate \
+  --packet /tmp/luna-packet.json \
+  --render /tmp/luna-packet.md \
+  --normalized /tmp/luna-packet.normalized.json
+
+~/.codex/bin/run-luna-worker \
+  --cd /path/to/git-worktree \
+  --packet-file /tmp/luna-packet.json \
+  --output /tmp/luna-result.md \
+  --metrics /tmp/luna-metrics.json
+```
+
+launcherはworkerのdiffをacceptしない。Solのreview gateは別工程である。
+
 ## Preflight
 
 1. packet size、JSON shape、field、pathを検証する。
