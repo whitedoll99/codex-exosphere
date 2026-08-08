@@ -47,18 +47,29 @@ automation safetyは規模にかかわらず維持します。workerのscope、�
 ```bash
 git clone <repository-url> ~/codex-exosphere
 cd ~/codex-exosphere
+
+# planを表示するだけ。書き込みはしない
+python3 bootstrap/install.py
+
+# 適用する
+python3 bootstrap/install.py --apply
+
+python3 bootstrap/verify.py
+```
+
+インストールはこれで完了です。設定ファイルは必要ありません。
+
+installを2段階に分けているのは意図的です。1回目は何をするかを表示するだけで、2回目は
+上書きせずに停止するため、すべてのdestinationがmissingか既に同一である必要があります。
+
+### Optional: Codexの`config.toml`を生成する
+
+`--local-config`を渡すと、installerが`config.toml`も生成します。
+
+```bash
 cp config/local.example.toml config/local.toml
 $EDITOR config/local.toml
-
-# まずplanを確認する
-python3 bootstrap/install.py --local-config config/local.toml
-
-# destinationがmissingまたは同一であることを確認して適用する
 python3 bootstrap/install.py --local-config config/local.toml --apply
-
-# repositoryとinstalled stateを検証する
-python3 bootstrap/verify.py
-python3 bootstrap/verify.py --installed
 ```
 
 `config/local.toml`は追跡対象外です。対応するtop-level keyは次の3個だけです。
@@ -70,6 +81,15 @@ writable_roots = ["~/codex-exosphere"]
 ```
 
 pathは絶対pathまたは`~/`で始めます。rendererは未知keyを拒否します。
+
+### Optional: インストール済みpluginを検証する
+
+`verify.py --installed`はeffective plugin selectionも検査し、これをCodex CLI経由で
+読み取ります。そのため上のコマンドと違い、動作するCLIとインストール済みpluginが必要です。
+
+```bash
+python3 bootstrap/verify.py --installed
+```
 
 ## Luna delegation
 
