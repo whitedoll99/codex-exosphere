@@ -148,9 +148,9 @@ codex-exosphereでは、モデルを単純な上下関係ではなく、役割�
 
 基本的な考え方はシンプルです。
 
-> **Use Sol for judgment.
-> Use Luna for implementation.
-> Let Sol verify the result.**
+> **Use Sol for judgment.**<br>
+> **Use Luna for implementation.**<br>
+> **Let Sol verify the result.**
 
 ### Solが担当する仕事
 
