@@ -311,10 +311,10 @@ Keep the work on the resident main agent when any of the following applies:
 ### Delegation packet
 
 Before invoking the guarded launcher for implementation, give it a bounded
-version 1 JSON packet. The normative schema and examples live in
-`docs/luna-delegation-contract.md`. A native read-only assistant may receive
-the same scoped context, but that does not make it an equivalent write route or
-host-enforced boundary. The packet contains:
+version 1 JSON packet. The installed packet guard validates this contract
+before any model call. A native read-only assistant may receive the same scoped
+context, but that does not make it an equivalent write route or host-enforced
+boundary. The packet contains:
 
 1. Objective and observable acceptance criteria.
 2. Allowed scope and explicit non-goals.

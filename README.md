@@ -45,7 +45,7 @@ automation safetyは規模にかかわらず維持します。workerのscope、�
 ## Quick start
 
 ```bash
-git clone <repository-url> ~/codex-exosphere
+git clone https://github.com/whitedoll99/codex-exosphere.git ~/codex-exosphere
 cd ~/codex-exosphere
 
 # planを表示するだけ。書き込みはしない
@@ -59,12 +59,53 @@ python3 bootstrap/verify.py
 
 インストールはこれで完了です。設定ファイルは必要ありません。
 
-ここから最初にやることは、後述のLunaへ小さく区切ったタスクを1件渡すことです。
-Codex Observatoryはその実行が記録される場所で、evaluation harnessはskill routingを
-変更するときにだけ関係します。
-
 installを2段階に分けているのは意図的です。1回目は何をするかを表示するだけで、2回目は
 上書きせずに停止するため、すべてのdestinationがmissingか既に同一である必要があります。
+
+### 既存のCodex環境へ導入する場合
+
+bootstrapはbundle全体をno-clobberで導入し、既存のglobal `AGENTS.md`を自動mergeしません。
+`$CODEX_HOME/AGENTS.md`がmissingまたはrepositoryの`config/AGENTS.md`とbyte単位で同一の場合
+だけ、bootstrapで導入できます。異なる内容がある場合、planは`CONFLICT`を表示してinstall
+全体を停止します。
+
+`CONFLICT`が出たら`--apply`へ進まず、既存fileをbackupして両方の内容を比較してください。
+repository版のglobal guidanceを採用すると決めた場合だけ、既存fileをmanaged destinationの
+外へ移してからplanを再実行します。既存guidanceをそのまま残す場合、bootstrapはpartial
+installや自動mergeをsupportしないため、その環境への適用を停止してください。
+
+### 最初のresident Codex → Luna実行
+
+install後は、起動中のCodex sessionを終了し、変更対象のGit repositoryで新しいsessionを
+開始します。これにより、installしたglobal `AGENTS.md`、agent定義、Skillが新しいsessionへ
+読み込まれます。
+
+```bash
+cd /path/to/your-git-repository
+codex
+```
+
+最初の依頼には、既に再現できる小さな局所taskを選び、observableな完了条件、変更してよい
+path、実行するfocused test、commit・pushの禁止を伝えてください。例えば次の形です。
+
+```text
+再現済みの局所バグを1件修正してください。完了条件は指定したfocused testが通ることです。
+変更は関連する実装fileとtestだけに限定し、commitもpushもしないでください。
+Lunaへの委譲条件を満たす場合はguarded launcherを使い、戻ったactual diffとfresh testを
+あなた自身で検収してから報告してください。
+```
+
+resident CodexがtaskをLunaへ渡せるかを判断し、該当する場合はpacket作成、guarded worker、
+actual diff review、fresh verificationまでを所有します。条件を満たさないtaskはresident側に
+保持されるため、Lunaが起動しないこと自体は失敗ではありません。後述のpacket commandは、
+この工程を手動で検査・再現するための低レベルinterfaceです。
+
+bootstrap、packet validation、plugin add/removeは隔離環境で検証済みですが、公開版を新規
+installした直後の認証付きmodel実行はまだ検証していません。この節は意図する最初の利用導線
+を示すもので、未実施のmodel E2Eを成功済みとは扱いません。
+
+Codex Observatoryはその実行を後から記録する場所で、evaluation harnessはskill routingを
+変更するときにだけ関係します。
 
 ### Optional: Codexの`config.toml`を生成する
 

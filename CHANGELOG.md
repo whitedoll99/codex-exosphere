@@ -26,6 +26,16 @@ everything since that extraction.
 
 ### Changed
 
+- The quick start now uses the concrete GitHub clone URL and documents the
+  bootstrap contract for an existing global `AGENTS.md`: missing or identical
+  is supported, while different content stops the whole no-clobber install.
+- Both READMEs now describe the first resident-Codex-to-Luna user journey and
+  preserve the explicit limitation that a fresh authenticated model run has
+  not yet been verified.
+- Installed global guidance no longer points at a repository-relative contract
+  document that is not part of the managed installation.
+- The English README states that detailed documents under `docs/` are primarily
+  maintained in Japanese.
 - The quick start now leads with the three commands that actually install.
   It previously opened by copying and editing `config/local.toml` and passed
   `--local-config` to both install steps, which read as though the file were
