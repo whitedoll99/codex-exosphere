@@ -182,6 +182,39 @@ Do not add:
 
 This boundary does not assume a hostile multi-user environment. It separates portable source from credentials and runtime state and protects existing work from automation mistakes.
 
+## Verified scope and limitations
+
+The install, verification, and uninstall paths were exercised end to end on
+2026-08-08 in a disposable Linux environment, with `HOME`, `CODEX_HOME`, and
+`XDG_STATE_HOME` redirected to temporary directories. That run covered the plan
+and apply phases, repository and installed verification, plugin add and remove
+through an existing Codex CLI, uninstall, and the full 66-test suite. The
+repository was also scanned for absolute paths, symlinks, and parent-directory
+traversal tied to the machine it was extracted from, and the scan reported no
+such dependency.
+
+The following remain unverified.
+
+- A separate physical machine or container, and any Linux distribution other
+  than the one used for that run.
+- Installing the Codex CLI from scratch. The run used an already-installed
+  `codex-cli 0.147.0`.
+- Provisioning a fresh Codex login, and any authenticated model execution.
+- Actual Luna, Terra, or Sol model invocation after installation.
+- The official plugin validator, which was unavailable in the test environment
+  and reported `SKIP` during both repository and installed verification.
+- macOS, Windows, and compatibility with future Codex CLI releases.
+
+Two behaviours are intentional rather than defects.
+
+- `uninstall.py` removes managed files, the marketplace entry, the install
+  state, and the installed plugin, but leaves empty parent directories such as
+  `.codex/agents` and `.codex/bin`. Those directories belong to the Codex CLI,
+  and removing them could damage an installation this project does not own.
+- `verify.py --installed` requires the Codex CLI, because it checks effective
+  plugin selection. Repository verification and the install payload itself do
+  not.
+
 ## License
 
 The project is available under the [MIT License](LICENSE). See [`plugins/resident-engineering-patterns/THIRD_PARTY_NOTICES.md`](plugins/resident-engineering-patterns/THIRD_PARTY_NOTICES.md) for third-party provenance and notices.

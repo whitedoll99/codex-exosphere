@@ -183,6 +183,34 @@ tests/        isolated contract and bootstrap tests
 
 この境界はhostile multi-user環境を前提にするものではありません。認証情報とruntime stateをportable sourceから分離し、automationの誤動作から既存作業を守るための境界です。
 
+## Verified scope and limitations
+
+install、verification、uninstallの各経路は2026-08-08に、`HOME`・`CODEX_HOME`・
+`XDG_STATE_HOME`をtemporary directoryへ差し替えた使い捨てのLinux環境で、end to endに
+実行しました。planとapplyの両phase、repository verificationとinstalled verification、
+既存のCodex CLIを用いたplugin addとremove、uninstall、66件のtest suite全体が対象です。
+併せて、抽出元マシンに紐づくabsolute path・symlink・親ディレクトリへのtraversalを走査し、
+該当する依存は検出されませんでした。
+
+次は未検証です。
+
+- 別の物理マシンまたはcontainer、および実行に用いたもの以外のLinux distribution。
+- Codex CLIの新規インストール。実行時はインストール済みの`codex-cli 0.147.0`を使用しました。
+- 新規のCodex loginのprovisioning、および認証を伴うmodel実行。
+- インストール後のLuna・Terra・Solの実際のmodel呼び出し。
+- official plugin validator。test環境に存在せず、repository verificationとinstalled
+  verificationの双方で`SKIP`となりました。
+- macOS、Windows、および将来のCodex CLIとの互換性。
+
+次の2点は欠陥ではなく意図した挙動です。
+
+- `uninstall.py`はmanaged file、marketplace entry、install state、インストール済みpluginを
+  削除しますが、`.codex/agents`や`.codex/bin`のような空の親ディレクトリは残します。これらは
+  Codex CLI側のディレクトリであり、削除すると本プロジェクトの管理外のインストールを
+  壊すおそれがあるためです。
+- `verify.py --installed`はCodex CLIを必要とします。effective plugin selectionを検査する
+  ためです。repository verificationとinstall payload自体はCodex CLIを必要としません。
+
 ## License
 
 本体は[MIT License](LICENSE)で提供します。第三者由来の影響と表示は[`plugins/resident-engineering-patterns/THIRD_PARTY_NOTICES.md`](plugins/resident-engineering-patterns/THIRD_PARTY_NOTICES.md)を参照してください。
