@@ -59,6 +59,10 @@ python3 bootstrap/verify.py
 
 インストールはこれで完了です。設定ファイルは必要ありません。
 
+ここから最初にやることは、後述のLunaへ小さく区切ったタスクを1件渡すことです。
+Codex Observatoryはその実行が記録される場所で、evaluation harnessはskill routingを
+変更するときにだけ関係します。
+
 installを2段階に分けているのは意図的です。1回目は何をするかを表示するだけで、2回目は
 上書きせずに停止するため、すべてのdestinationがmissingか既に同一である必要があります。
 
@@ -93,9 +97,20 @@ python3 bootstrap/verify.py --installed
 
 ## Luna delegation
 
-write-capableな委譲は、guarded launcherを通します。
+write-capableな委譲は、guarded launcherを通します。packetはexampleから始めてください。
+全fieldが必須で未知fieldは拒否されるため、手書きしたpacketが一度で通ることはまずありません。
 
 ```bash
+cp docs/luna-packet.example.json /tmp/luna-packet.json
+$EDITOR /tmp/luna-packet.json
+
+# model呼び出しを使う前にpacketを検査する。renderされたファイルには
+# Lunaが実際に受け取る内容がそのまま出る
+~/.codex/bin/luna-packet-guard validate \
+  --packet /tmp/luna-packet.json \
+  --render /tmp/luna-packet.md \
+  --normalized /tmp/luna-packet.normalized.json
+
 ~/.codex/bin/run-luna-worker \
   --cd /path/to/git-worktree \
   --packet-file /tmp/luna-packet.json \

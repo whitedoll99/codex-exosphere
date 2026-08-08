@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "mode": "implementation",
+  "objective": "Implement one approved parser behavior.",
+  "acceptance_criteria": ["The focused regression test passes."],
+  "allowed_changes": ["src/parser.py", "tests/test_parser.py"],
+  "read_only_context": ["docs/contract.md"],
+  "non_goals": ["Do not redesign the public CLI."],
+  "verification": ["python3 -m unittest tests.test_parser -v"],
+  "authorization": {"commit": false, "push": false},
+  "existing_changes": [],
+  "soft_budget": {
+    "review_unit": "One parser behavior and its focused test.",
+    "stop_conditions": ["A compatibility adapter must change."]
+  }
+}

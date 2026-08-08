@@ -59,6 +59,10 @@ python3 bootstrap/verify.py
 
 That is the whole installation. No configuration file is required.
 
+From here the usual first move is to send one bounded task to Luna, described
+below. Codex Observatory is where those runs are recorded afterwards, and the
+evaluation harness matters only when changing skill routing.
+
 The two install steps are separate on purpose. The first run only prints what
 it would do. The second stops rather than overwrite anything, so every
 destination must be missing or already identical.
@@ -95,9 +99,21 @@ python3 bootstrap/verify.py --installed
 
 ## Luna delegation
 
-Write-capable delegation uses the guarded launcher:
+Write-capable delegation uses the guarded launcher. Start from the example
+packet: every field is required and unknown fields are rejected, so a
+hand-written packet rarely validates on the first try.
 
 ```bash
+cp docs/luna-packet.example.json /tmp/luna-packet.json
+$EDITOR /tmp/luna-packet.json
+
+# Check the packet before spending a model call. The rendered file shows
+# exactly what Luna will receive.
+~/.codex/bin/luna-packet-guard validate \
+  --packet /tmp/luna-packet.json \
+  --render /tmp/luna-packet.md \
+  --normalized /tmp/luna-packet.normalized.json
+
 ~/.codex/bin/run-luna-worker \
   --cd /path/to/git-worktree \
   --packet-file /tmp/luna-packet.json \
