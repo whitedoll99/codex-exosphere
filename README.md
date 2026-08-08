@@ -19,27 +19,11 @@ GPT-5.6 Solは強力ですが、すべてのコーディングをSol自身に行
 
 codex-exosphereでは、Solが問題を理解して作業を整理したあと、判断の余地が少ない実装単位をGPT-5.6 Lunaへ委譲できます。現在のCodex価格体系ではLunaはSolより低コストです（[Codex rate card](https://help.openai.com/en/articles/20001106-codex-rate-card)）。
 
-```text
-User
-  │
-  ▼
-GPT-5.6 Sol
-  │
-  ├─ 要件整理
-  ├─ 調査・設計
-  ├─ 作業分割
-  │
-  └─ 実装可能な単位
-          │
-          ▼
-     GPT-5.6 Luna
-          │
-          ▼
-       実装・テスト
-          │
-          ▼
-      GPT-5.6 Sol
-       最終レビュー
+```mermaid
+flowchart TD
+    U["User"] --> S1["GPT-5.6 Sol<br/>要件整理・調査・設計・作業分割"]
+    S1 -->|"実装可能な単位"| L["GPT-5.6 Luna<br/>実装・テスト"]
+    L --> S2["GPT-5.6 Sol<br/>diff・テスト結果を最終レビュー"]
 ```
 
 ユーザーがLunaを直接操作する必要はありません。
@@ -194,28 +178,13 @@ Lunaに適しているのは、たとえば次のような作業です。
 
 ### 委譲の流れ
 
-```text
-Sol
- │
- │ bounded task
- ▼
-┌──────────────────┐
-│ Luna launcher    │
-│                  │
-│ preflight check  │
-└────────┬─────────┘
-         │
-         ▼
-   GPT-5.6 Luna
-         │
-         ▼
-┌──────────────────┐
-│ Git scope check  │
-└────────┬─────────┘
-         │
-         ▼
-        Sol
-  diff / test review
+```mermaid
+flowchart TD
+    S["GPT-5.6 Sol"] -->|"bounded task"| P["委譲packet"]
+    P --> G1["Luna launcher<br/>preflight check"]
+    G1 --> L["GPT-5.6 Luna"]
+    L --> G2["Git scope check"]
+    G2 --> R["GPT-5.6 Sol<br/>diff / test review"]
 ```
 
 packetの仕様、preflight / postflightの検査内容、手動でpacketを扱う方法は[Luna delegation contract](docs/luna-delegation-contract.md)にあります。
@@ -234,21 +203,12 @@ codex-exosphereはこの制約のもとで、Lunaを独立したephemeral Codex 
 
 概念的には次のようになります。
 
-```text
-GPT-5.6 Sol
-      │
-      │ guarded delegation
-      ▼
-run-luna-worker
-      │
-      ▼
-temporary CODEX_HOME
-      │
-      ▼
-codex exec --model gpt-5.6-luna
-      │
-      ▼
-GPT-5.6 Luna
+```mermaid
+flowchart TD
+    S["GPT-5.6 Sol"] -->|"guarded delegation"| W["run-luna-worker"]
+    W --> H["temporary CODEX_HOME"]
+    H --> E["codex exec<br/>--model gpt-5.6-luna"]
+    E --> L["GPT-5.6 Luna"]
 ```
 
 ただし、単に別のCodex CLIを起動しているだけではありません。
@@ -337,7 +297,7 @@ Terraはread-only sandboxで動作するよう設定されており、workspace�
 
 Terraの意見も最終決定ではありません。
 
-Solがfindingを実際のrepository evidenceと照合し、採否を判断します。
+Solが指摘内容を実際のrepository evidenceと照合し、採否を判断します。
 
 ---
 

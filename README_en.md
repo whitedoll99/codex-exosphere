@@ -18,27 +18,11 @@ GPT-5.6 Sol is capable, but there is no need to make Sol write every line.
 
 In codex-exosphere, Sol understands the problem and organizes the work, then delegates implementation units that need little judgment to GPT-5.6 Luna. Under the current Codex pricing, Luna costs less than Sol ([Codex rate card](https://help.openai.com/en/articles/20001106-codex-rate-card)).
 
-```text
-User
-  │
-  ▼
-GPT-5.6 Sol
-  │
-  ├─ framing
-  ├─ investigation and design
-  ├─ splitting the work
-  │
-  └─ implementable unit
-          │
-          ▼
-     GPT-5.6 Luna
-          │
-          ▼
-   implementation / tests
-          │
-          ▼
-      GPT-5.6 Sol
-       final review
+```mermaid
+flowchart TD
+    U["User"] --> S1["GPT-5.6 Sol<br/>framing, investigation, design, splitting"]
+    S1 -->|"implementable unit"| L["GPT-5.6 Luna<br/>implementation and tests"]
+    L --> S2["GPT-5.6 Sol<br/>reviews the actual diff and test results"]
 ```
 
 You do not drive Luna yourself. Ask Sol for the work as usual, and Sol decides whether to delegate it at all.
@@ -190,28 +174,13 @@ If a design decision or a scope extension turns out to be necessary mid-task, Lu
 
 ### The delegation cycle
 
-```text
-Sol
- │
- │ bounded task
- ▼
-┌──────────────────┐
-│ Luna launcher    │
-│                  │
-│ preflight check  │
-└────────┬─────────┘
-         │
-         ▼
-   GPT-5.6 Luna
-         │
-         ▼
-┌──────────────────┐
-│ Git scope check  │
-└────────┬─────────┘
-         │
-         ▼
-        Sol
-  diff / test review
+```mermaid
+flowchart TD
+    S["GPT-5.6 Sol"] -->|"bounded task"| P["delegation packet"]
+    P --> G1["Luna launcher<br/>preflight check"]
+    G1 --> L["GPT-5.6 Luna"]
+    L --> G2["Git scope check"]
+    G2 --> R["GPT-5.6 Sol<br/>diff / test review"]
 ```
 
 The packet schema, the preflight and postflight checks, and the manual interface are documented in the [Luna delegation contract](docs/luna-delegation-contract.md).
@@ -230,21 +199,12 @@ Given that constraint, codex-exosphere runs Luna as an independent ephemeral Cod
 
 Conceptually:
 
-```text
-GPT-5.6 Sol
-      │
-      │ guarded delegation
-      ▼
-run-luna-worker
-      │
-      ▼
-temporary CODEX_HOME
-      │
-      ▼
-codex exec --model gpt-5.6-luna
-      │
-      ▼
-GPT-5.6 Luna
+```mermaid
+flowchart TD
+    S["GPT-5.6 Sol"] -->|"guarded delegation"| W["run-luna-worker"]
+    W --> H["temporary CODEX_HOME"]
+    H --> E["codex exec<br/>--model gpt-5.6-luna"]
+    E --> L["GPT-5.6 Luna"]
 ```
 
 It is not merely another Codex CLI invocation. The Luna environment additionally:
