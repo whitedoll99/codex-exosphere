@@ -64,6 +64,7 @@ class LunaLauncherContractTests(unittest.TestCase):
                   fi
                   exit 0
                 fi
+                printf '%s\n' "${TMPDIR:-}" > "$FAKE_CODEX_WORKER_TMPDIR"
                 if [[ -n "${FAKE_CODEX_WRITE_PATH:-}" ]]; then
                   mkdir -p -- "$(dirname -- "$FAKE_CODEX_WRITE_PATH")"
                   printf '%s\n' 'worker change' > "$FAKE_CODEX_WRITE_PATH"
@@ -92,6 +93,7 @@ class LunaLauncherContractTests(unittest.TestCase):
         )
         fake_codex.chmod(0o755)
         self.commands = self.root / "commands.log"
+        self.worker_tmpdir = self.root / "worker-tmpdir.txt"
         self.environment = os.environ.copy()
         self.environment.update(
             {
@@ -100,6 +102,7 @@ class LunaLauncherContractTests(unittest.TestCase):
                 "PATH": f"{self.bin}:{self.environment['PATH']}",
                 "RESIDENT_ENGINEERING_PATTERNS_ROOT": str(PATTERNS),
                 "FAKE_CODEX_COMMANDS": str(self.commands),
+                "FAKE_CODEX_WORKER_TMPDIR": str(self.worker_tmpdir),
                 "FAKE_CODEX_JSONL": str(self.jsonl),
                 "FAKE_CODEX_STDERR": str(self.stderr),
                 "FAKE_CODEX_RESULT": str(self.result),
@@ -204,6 +207,20 @@ class LunaLauncherContractTests(unittest.TestCase):
         self.assertIn("--json", self.commands.read_text())
         self.assertIn("--sandbox workspace-write", self.commands.read_text())
         self.assertTrue(metrics["scope"]["passed"])
+
+    def test_worker_uses_isolated_tmpdir_for_nested_sandbox_registry(self) -> None:
+        self.result.write_text("concise result\n")
+        self.stderr.write_text("")
+        self.jsonl.write_text(json.dumps({"type": "turn.completed", "usage": {}}) + "\n")
+        self.environment["TMPDIR"] = str(self.root / "outer-tmp")
+        Path(self.environment["TMPDIR"]).mkdir()
+
+        self.run_launcher()
+
+        worker_tmpdir = Path(self.worker_tmpdir.read_text().strip())
+        self.assertEqual("tmp", worker_tmpdir.name)
+        self.assertTrue(worker_tmpdir.parent.name.startswith("codex-luna-worker."))
+        self.assertEqual(Path(self.environment["TMPDIR"]), worker_tmpdir.parent.parent)
 
     def test_failure_preserves_exit_and_redacts_bounded_diagnostic(self) -> None:
         self.environment["FAKE_CODEX_EXIT"] = "7"

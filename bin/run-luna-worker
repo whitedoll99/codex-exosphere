@@ -93,6 +93,8 @@ fi
 
 runtime_home="$(mktemp -d "${TMPDIR:-/tmp}/codex-luna-worker.XXXXXX")"
 chmod 0700 "$runtime_home"
+worker_tmpdir="$runtime_home/tmp"
+mkdir -p -- "$worker_tmpdir"
 cleanup() {
   rm -rf -- "$runtime_home"
 }
@@ -263,7 +265,10 @@ set +e
     '' \
     '--- delegation packet ---'
   sed -n '1,$p' -- "$rendered_packet"
-} | CODEX_HOME="$runtime_home" codex exec \
+# A nested Codex sandbox must not reuse the outer sandbox's synthetic mount
+# registry. The outer sandbox exposes that registry read-only, so give the
+# child a private temp root while retaining its own sandbox policy.
+} | CODEX_HOME="$runtime_home" TMPDIR="$worker_tmpdir" codex exec \
   --model gpt-5.6-luna \
   --config 'model_reasoning_effort="xhigh"' \
   --config 'approval_policy="never"' \
