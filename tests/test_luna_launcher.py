@@ -211,7 +211,20 @@ class LunaLauncherContractTests(unittest.TestCase):
     def test_worker_uses_isolated_tmpdir_for_nested_sandbox_registry(self) -> None:
         self.result.write_text("concise result\n")
         self.stderr.write_text("")
-        self.jsonl.write_text(json.dumps({"type": "turn.completed", "usage": {}}) + "\n")
+        self.jsonl.write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "type": "item.completed",
+                            "item": {"type": "command_execution", "command": "pwd"},
+                        }
+                    ),
+                    json.dumps({"type": "turn.completed", "usage": {}}),
+                ]
+            )
+            + "\n"
+        )
         self.environment["TMPDIR"] = str(self.root / "outer-tmp")
         Path(self.environment["TMPDIR"]).mkdir()
 
@@ -221,6 +234,20 @@ class LunaLauncherContractTests(unittest.TestCase):
         self.assertEqual("tmp", worker_tmpdir.name)
         self.assertTrue(worker_tmpdir.parent.name.startswith("codex-luna-worker."))
         self.assertEqual(Path(self.environment["TMPDIR"]), worker_tmpdir.parent.parent)
+
+    def test_zero_tool_invocations_fail_as_inert_run(self) -> None:
+        self.result.write_text("unearned success result\n")
+        self.stderr.write_text("")
+        self.jsonl.write_text(json.dumps({"type": "turn.completed", "usage": {}}) + "\n")
+
+        result = self.run_launcher(expected=69)
+
+        self.assertEqual("", result.stdout)
+        self.assertIn("no command_execution items", result.stderr)
+        metrics = json.loads(self.metrics.read_text())
+        self.assertEqual("failed", metrics["status"])
+        self.assertEqual(69, metrics["exit_code"])
+        self.assertEqual(0, metrics["tool_invocations"])
 
     def test_failure_preserves_exit_and_redacts_bounded_diagnostic(self) -> None:
         self.environment["FAKE_CODEX_EXIT"] = "7"
@@ -323,7 +350,20 @@ class LunaLauncherContractTests(unittest.TestCase):
         self.write_packet(mode="read-only", allowed_changes=[])
         self.result.write_text("read-only result\n")
         self.stderr.write_text("")
-        self.jsonl.write_text(json.dumps({"type": "turn.completed", "usage": {}}) + "\n")
+        self.jsonl.write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "type": "item.completed",
+                            "item": {"type": "command_execution", "command": "pwd"},
+                        }
+                    ),
+                    json.dumps({"type": "turn.completed", "usage": {}}),
+                ]
+            )
+            + "\n"
+        )
 
         self.run_launcher()
 

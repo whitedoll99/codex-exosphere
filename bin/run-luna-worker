@@ -361,6 +361,7 @@ usage: dict[str, int] = {}
 errors: list[str] = []
 observed_skills: set[str] = set()
 malformed_lines = 0
+tool_invocations = 0
 raw_jsonl = jsonl_path.read_text(encoding="utf-8", errors="replace") if jsonl_path.exists() else ""
 for line in raw_jsonl.splitlines():
     if not line.strip():
@@ -383,6 +384,8 @@ for line in raw_jsonl.splitlines():
         }
     item = event.get("item")
     if isinstance(item, dict) and item.get("type") == "command_execution":
+        if event_type == "item.completed":
+            tool_invocations += 1
         command = item.get("command")
         if isinstance(command, str):
             observed_skills.update(
@@ -427,6 +430,9 @@ effective_status = status
 if malformed_lines and effective_status == 0:
     effective_status = 65
     errors.append(f"Codex JSONL contained {malformed_lines} malformed line(s).")
+if tool_invocations == 0 and effective_status == 0:
+    effective_status = 69
+    errors.append("Luna run contained no command_execution items; refusing to report completion.")
 
 metrics = {
     "schema_version": 1,
@@ -439,6 +445,7 @@ metrics = {
     "stderr_bytes": len(raw_stderr.encode("utf-8")),
     "result_bytes": result_bytes,
     "malformed_jsonl_lines": malformed_lines,
+    "tool_invocations": tool_invocations,
     "event_counts": dict(sorted(event_counts.items())),
     "observed_skills": sorted(observed_skills),
     "usage": usage,

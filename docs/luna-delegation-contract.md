@@ -114,9 +114,10 @@ read-only modeはallowed changesが空なので、どの変更もscope violation
 
 ## Exit taxonomy
 
-- `0`: model成功かつscope check合格
+- `0`: model成功、`command_execution` itemが1件以上、かつscope check合格
 - `2`: CLI、packet、preflight不正
 - `65`: Codex JSONL不正
+- `69`: modelが成功終了したが`command_execution` itemが0件
 - `70`: launcher内部処理不正
 - `78`: postflight scope／commit violation
 - その他: Codex CLI自身の非zero exitを保持
