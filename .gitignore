@@ -12,3 +12,9 @@ install-state.json
 *.bak
 *.bak-*
 /AGENTS.md
+
+# Per-repository Codex state written when a Codex session runs inside this
+# checkout (hooks.json and anything added later). Machine-local: it contains
+# absolute paths from the host that installed it, so it must never be committed
+# to a public repository.
+/.codex/
