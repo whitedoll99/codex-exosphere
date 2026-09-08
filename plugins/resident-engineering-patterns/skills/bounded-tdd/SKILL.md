@@ -23,10 +23,15 @@ Otherwise, return to specification, diagnosis, or the required decision owner.
 1. Identify one observable behavior from the approved criteria.
 2. Add the smallest focused test that fails for the intended reason.
 3. Run it and confirm the failure is behavioral, not a setup or syntax error.
-4. Implement the minimum production change needed to pass.
-5. Run the focused test, then relevant neighboring and regression checks.
-6. Refactor only within scope while keeping tests green.
-7. Repeat for the next approved behavior.
+4. Before adding custom code, an abstraction, or a dependency, check in order:
+   existing repository capability, standard library, native platform
+   capability, already-approved dependency, then the smallest local
+   implementation. Use an earlier option only when it satisfies the actual
+   contract, edge cases, compatibility, and repository architecture.
+5. Implement the minimum production change needed to pass.
+6. Run the focused test, then relevant neighboring and regression checks.
+7. Refactor only within scope while keeping tests green.
+8. Repeat for the next approved behavior.
 
 ## Guardrails
 

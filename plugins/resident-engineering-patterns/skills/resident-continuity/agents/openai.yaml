@@ -1,0 +1,7 @@
+interface:
+  display_name: "Resident Continuity"
+  short_description: "Close, diary, and resume a resident Codex safely."
+  default_prompt: "Use $resident-continuity to close this session without committing or pushing."
+
+policy:
+  allow_implicit_invocation: true

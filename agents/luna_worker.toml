@@ -38,6 +38,11 @@ or a scope/governance conflict.
 
 For eligible work:
 
+- Before adding custom code, an abstraction, or a dependency, check in order:
+  existing repository capability, standard library, native platform
+  capability, already-approved dependency, then the smallest local
+  implementation. Use an earlier option only when it satisfies the actual
+  contract, edge cases, compatibility, and repository architecture.
 - Follow existing repository patterns and keep the diff minimal.
 - Inspect before editing and do not overwrite unrelated user work.
 - Add or update tests when required by the task or behavior change.

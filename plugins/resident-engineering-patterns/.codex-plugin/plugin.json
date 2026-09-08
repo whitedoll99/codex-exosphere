@@ -1,7 +1,7 @@
 {
   "name": "resident-engineering-patterns",
-  "version": "0.1.0+codex.20260720045038",
-  "description": "Engineering workflows for a resident Codex working with governed repositories and independent reviewers.",
+  "version": "0.2.0+codex.20260812004204",
+  "description": "Engineering and continuity workflows adapted for a resident Codex working with governed repositories and independent reviewers.",
   "author": {
     "name": "whitedoll99"
   },
@@ -9,15 +9,16 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Resident Engineering Patterns",
-    "shortDescription": "Bounded engineering workflows for resident Codex sessions.",
-    "longDescription": "Ten resident workflows for bounded engineering. Repository governance, user authority, read-only boundaries, and independent review ownership always take precedence.",
+    "shortDescription": "Bounded engineering and resident continuity workflows.",
+    "longDescription": "Eleven resident workflows for bounded engineering and private session continuity. Repository governance, user authority, read-only boundaries, and independent review ownership always take precedence.",
     "developerName": "whitedoll99",
     "category": "Developer Tools",
     "capabilities": [
       "Systematic diagnosis and verification",
       "Independent review preparation and triage",
       "Bounded test-driven implementation",
-      "Focused problem, contract, architecture, domain, and interface analysis"
+      "Focused problem, contract, architecture, domain, and interface analysis",
+      "Private diary buffering, verified handoff, and rehydration"
     ],
     "defaultPrompt": "Select one Resident Engineering Patterns skill explicitly for the current bounded task."
   }

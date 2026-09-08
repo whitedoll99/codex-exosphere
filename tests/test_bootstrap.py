@@ -292,7 +292,7 @@ class BootstrapTests(unittest.TestCase):
         self.assertTrue(launcher.exists())
 
     def test_installed_plugin_accepts_only_version_cachebuster_drift(self) -> None:
-        self.install_for_verification(version="0.1.0+codex.release-a1")
+        self.install_for_verification(version="0.2.0+codex.release-a1")
         result = self.run_script(
             "verify.py",
             "--installed",
@@ -342,10 +342,10 @@ class BootstrapTests(unittest.TestCase):
         self.install_for_verification()
         for version in (
             "9.9.9+codex.release-a1",
-            "0.1.0+codex.UPPER",
-            "0.1.0+codex.double--hyphen",
-            "0.1.0+codex.trailing-",
-            "0.1.0",
+            "0.2.0+codex.UPPER",
+            "0.2.0+codex.double--hyphen",
+            "0.2.0+codex.trailing-",
+            "0.2.0",
         ):
             with self.subTest(version=version):
                 self.reset_installed_plugin_fixture(version=version)

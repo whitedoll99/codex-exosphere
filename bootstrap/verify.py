@@ -39,6 +39,7 @@ SKILLS = {
     "architecture-quality-analysis",
     "domain-model-audit",
     "interface-boundary-audit",
+    "resident-continuity",
 }
 
 
@@ -353,13 +354,13 @@ def main() -> int:
 
     skill_root = REPO_ROOT / "plugins" / PLUGIN_NAME / "skills"
     found_skills = {path.name for path in skill_root.iterdir() if path.is_dir()}
-    check(found_skills == SKILLS, "exactly the expected ten skills are present", failures)
+    check(found_skills == SKILLS, "exactly the expected eleven skills are present", failures)
     policies_ok = all(
         "allow_implicit_invocation: true"
         in (skill_root / skill / "agents" / "openai.yaml").read_text()
         for skill in SKILLS
     )
-    check(policies_ok, "all ten skills allow implicit invocation", failures)
+    check(policies_ok, "all eleven skills allow implicit invocation", failures)
     launcher = REPO_ROOT / "bin" / "run-luna-worker"
     shell = subprocess.run(["bash", "-n", str(launcher)], check=False)
     check(shell.returncode == 0, "Luna launcher passes bash -n", failures)
