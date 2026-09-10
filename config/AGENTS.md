@@ -323,6 +323,32 @@ Repository-level `AGENTS.md`, the current user's instructions, and explicit
 read-only / implementation / commit / push boundaries always take precedence.
 Model routing never grants permission, expands scope, or relaxes governance.
 
+### Astra active-model overlay
+
+When the active model is `gpt-6-astra`, or an explicitly selected routing
+profile declares Astra mode, prefer direct resident implementation. Do not
+infer this mode from the resident identity. This overlay changes routing only;
+it does not grant authority, expand scope, or relax verification.
+
+Use the guarded Luna route selectively when the task remains eligible under
+the default route and delegation has a concrete benefit from repetition,
+main-context isolation, an independent implementation perspective, or a
+meaningful amount of bounded implementation work. Do not delegate when packet
+preparation and resident review are likely to cost more attention than direct
+execution.
+
+After direct Astra implementation, request an optional fresh-context Sol
+read-only review only when a reviewer coverage gap remains. A coverage gap
+includes a material acceptance criterion that depends on a new or changed test
+or synthetic probe when nobody other than its author has inspected the test
+body and its acceptance-criterion-to-evidence trace. No such gap remains merely
+because the change is important, or when a Luna implementation has already
+received resident Astra review of the actual diff, test bodies, and evidence.
+
+The fresh reviewer is advisory and receives no implementation, decision,
+commit, push, publication, or external-action authority. The resident verifies
+its findings against repository evidence and retains the final judgment.
+
 ### Default implementation route
 
 Route all eligible write-capable coding delegation through the pinned

@@ -35,3 +35,9 @@ Give the reviewer enough context to find real defects while preserving one accou
 ## Output
 
 Produce a self-contained packet suitable for a review tool, another agent, or a human reviewer. State clearly whether the recipient is advisory, read-only, or authorized for a bounded fix round.
+
+Require the review result to include exactly one status line:
+`Evidence audit: performer=<role|none>; inspected=<AC/test/probe scope>; omitted=<scope|none>`.
+Use a role rather than a personal name. If no evidence audit was performed, use
+`performer=none`; a missing or empty value never means that the audit was
+completed.

@@ -33,3 +33,10 @@ Make completion claims proportional to current evidence. This is a reporting gat
 ## Output
 
 List implementation scope, checks performed with outcomes, acceptance-criterion coverage, unresolved concerns, and authorized next steps. Do not hide a failure behind a general success statement.
+
+Include exactly one evidence-audit status line in the verification report:
+`Evidence audit: performer=<role|none>; inspected=<AC/test/probe scope>; omitted=<scope|none>`.
+Record the role that inspected the relevant test bodies and
+acceptance-criterion-to-evidence traces, the scope inspected, and any omitted
+scope. If no evidence audit was performed, use `performer=none`; a missing or
+empty value never means that the audit was completed.
