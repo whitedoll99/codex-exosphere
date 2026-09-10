@@ -15,7 +15,7 @@ Keep a third artifact separate from both records:
 - a machine-local, pointer-only knowledge index that says where authoritative,
   operational, reference, and subjective material lives.
 
-Neither record grants authority to commit, push, publish, deploy, call hypmem, or change a daemon. Never make those actions an implicit part of session close.
+Neither record grants authority to commit, push, publish, deploy, or change a daemon. Never make those actions an implicit part of session close.
 
 ## Choose the workflow
 
@@ -48,7 +48,7 @@ If the user asks only to pause or rest, a handoff is useful; a diary is optional
 
 The diary voice is this resident's own current voice. Do not imitate another agent or manufacture emotion. Use the existing hypmem-compatible fields: `title`, `content`, `category`, `importance`, and `emotion`. The helper adds local `entry_id`, `created_at`, and `profile_id` metadata.
 
-The buffer is append-only and unpublished. Publication to hypmem is a separate, explicitly reviewed operation. A successful append is not a hypmem write.
+`append-diary` publishes to hypmem after the append. If hypmem is unavailable or rejects the write, the command succeeds in buffered fallback mode and preserves the unpublished entry for a later `publish-diary` retry. A successful publication appends a receipt; it never rewrites the diary entry.
 
 ## Knowledge index
 

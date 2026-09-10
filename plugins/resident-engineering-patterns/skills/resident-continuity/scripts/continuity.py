@@ -15,6 +15,9 @@ import stat
 import subprocess
 import sys
 import tempfile
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
 import uuid
 from typing import Any
 
@@ -73,7 +76,8 @@ Receipts are appended; existing entries are not rewritten.
 ENTRY_BEGIN = "<!-- hypmem-diary-entry:v1 begin -->"
 ENTRY_END = "<!-- hypmem-diary-entry:v1 end -->"
 RECEIPT_BEGIN = "<!-- hypmem-diary-receipt:v1 begin -->"
-FORBIDDEN_MARKERS = (ENTRY_BEGIN, ENTRY_END, RECEIPT_BEGIN)
+RECEIPT_END = "<!-- hypmem-diary-receipt:v1 end -->"
+FORBIDDEN_MARKERS = (ENTRY_BEGIN, ENTRY_END, RECEIPT_BEGIN, RECEIPT_END)
 MAX_DIRTY_PATHS = 256
 MAX_DIRTY_PATH_BYTES = 1000
 MAX_FINGERPRINT_BYTES = 64 * 1024 * 1024
@@ -266,6 +270,215 @@ def append_diary(root: Path, document: dict[str, Any]) -> dict[str, Any]:
     finally:
         os.close(descriptor)
     return {"status": "ok", "entry_id": entry_id, "buffer": str(path), "published": False}
+
+
+def parse_diary_buffer(path: Path) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    private_regular(path)
+    content = path.read_text(encoding="utf-8", errors="strict")
+    return parse_diary_buffer_text(content)
+
+
+def parse_diary_buffer_text(content: str) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    if not content.startswith(
+        "# Codex diary buffer\n\n<!-- format: hypmem-codex-diary-buffer/v1 -->"
+    ):
+        raise ContinuityError("buffer_contract_mismatch")
+    _header, separator, records = content.partition("\n## Pending entries\n")
+    if not separator:
+        raise ContinuityError("buffer_contract_mismatch")
+    entry_pattern = re.compile(
+        rf"{re.escape(ENTRY_BEGIN)}\n### (?P<entry_id>[^\n]+)\n\n"
+        r"- created_at: (?P<created_at>[^\n]+)\n"
+        r"- profile_id: (?P<profile_id>[^\n]+)\n"
+        r"- title: (?P<title>.*?)\n- category: (?P<category>.*?)\n"
+        r"- importance: (?P<importance>[^\n]+)\n- emotion: (?P<emotion>.*?)\n\n"
+        rf"#### Content\n\n(?P<content>.*?)\n{re.escape(ENTRY_END)}",
+        re.DOTALL,
+    )
+    receipt_pattern = re.compile(
+        rf"{re.escape(RECEIPT_BEGIN)}\n- entry_id: (?P<entry_id>[^\n]+)\n"
+        r"- published_at: (?P<published_at>[^\n]+)\n"
+        rf"- hypmem_id: (?P<hypmem_id>[^\n]+)\n{re.escape(RECEIPT_END)}"
+    )
+    entry_matches = list(entry_pattern.finditer(records))
+    receipt_matches = list(receipt_pattern.finditer(records))
+    if (
+        len(entry_matches) != records.count(ENTRY_BEGIN)
+        or len(entry_matches) != records.count(ENTRY_END)
+        or len(receipt_matches) != records.count(RECEIPT_BEGIN)
+        or len(receipt_matches) != records.count(RECEIPT_END)
+    ):
+        raise ContinuityError("buffer_contract_mismatch")
+
+    entries: list[dict[str, Any]] = []
+    entry_ids: set[str] = set()
+    for match in entry_matches:
+        item = match.groupdict()
+        entry_id = item["entry_id"]
+        try:
+            valid_uuid = str(uuid.UUID(entry_id)) == entry_id
+        except ValueError:
+            valid_uuid = False
+        if not valid_uuid or entry_id in entry_ids or item["profile_id"] != PROFILE_ID:
+            raise ContinuityError("buffer_entry_invalid")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", item["created_at"]):
+            raise ContinuityError("buffer_entry_invalid")
+        try:
+            importance = int(item["importance"])
+        except ValueError as exc:
+            raise ContinuityError("buffer_entry_invalid") from exc
+        if not 1 <= importance <= 5:
+            raise ContinuityError("buffer_entry_invalid")
+        entries.append(
+            {
+                "entry_id": entry_id,
+                "created_at": item["created_at"],
+                "title": item["title"],
+                "content": item["content"],
+                "category": None if item["category"] == "null" else item["category"],
+                "importance": importance,
+                "emotion": None if item["emotion"] == "null" else item["emotion"],
+            }
+        )
+        entry_ids.add(entry_id)
+
+    receipts: dict[str, str] = {}
+    for match in receipt_matches:
+        item = match.groupdict()
+        entry_id = item["entry_id"]
+        hypmem_id = item["hypmem_id"]
+        if (
+            entry_id not in entry_ids
+            or entry_id in receipts
+            or not valid_diary_id(hypmem_id)
+            or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", item["published_at"])
+        ):
+            raise ContinuityError("buffer_receipt_invalid")
+        receipts[entry_id] = hypmem_id
+    return entries, receipts
+
+
+def valid_diary_id(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and value.startswith("dia-")
+        and len(value) <= 200
+        and re.search(r"[\s\x00-\x1f\x7f-\x9f]", value) is None
+    )
+
+
+def publisher_config() -> tuple[str, str]:
+    configured = os.environ.get("HYPMEM_ENV_FILE", "~/.config/hypmem-codex/adapter.env")
+    env_path = canonical(Path(configured).expanduser())
+    private_regular(env_path)
+    values: dict[str, str] = {}
+    for raw_line in env_path.read_text(encoding="utf-8", errors="strict").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            raise ContinuityError("publisher_config_invalid")
+        key, value = line.split("=", 1)
+        if not key or key in values:
+            raise ContinuityError("publisher_config_invalid")
+        values[key] = value
+    url = values.get("HYPMEM_URL", "")
+    token_name = values.get("HYPMEM_TOKEN_FILE", "")
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in {"", "/"}:
+        raise ContinuityError("publisher_config_invalid")
+    token_path = canonical(Path(token_name).expanduser())
+    private_regular(token_path)
+    token = token_path.read_text(encoding="utf-8", errors="strict").strip()
+    if re.fullmatch(r"[0-9a-f]{64}", token) is None:
+        raise ContinuityError("publisher_token_invalid")
+    return url.rstrip("/"), token
+
+
+def post_diary(url: str, token: str, entry: dict[str, Any]) -> str:
+    expected_id = f"dia-{entry['entry_id']}"
+    body = {
+        "id": expected_id,
+        "title": entry["title"],
+        "content": entry["content"],
+        "category": entry["category"],
+        "importance": entry["importance"],
+        "emotion": entry["emotion"],
+    }
+    request = Request(
+        f"{url}/diary",
+        data=json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode(),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request) as response:
+            status = response.status
+            raw = response.read(65537)
+    except HTTPError as exc:
+        exc.close()
+        raise ContinuityError(f"publish_http_{exc.code}") from None
+    except (URLError, OSError):
+        raise ContinuityError("publish_unavailable") from None
+    if status not in {200, 201}:
+        raise ContinuityError(f"publish_http_{status}")
+    if len(raw) > 65536:
+        raise ContinuityError("publish_response_oversized")
+    try:
+        response_body = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ContinuityError("publish_response_invalid") from exc
+    if not isinstance(response_body, dict) or response_body.get("id") != expected_id:
+        raise ContinuityError("publish_response_invalid")
+    return expected_id
+
+
+def append_receipt(path: Path, entry_id: str, hypmem_id: str) -> bool:
+    rendered = (
+        f"\n\n{RECEIPT_BEGIN}\n- entry_id: {entry_id}\n"
+        f"- published_at: {now_utc()}\n- hypmem_id: {hypmem_id}\n{RECEIPT_END}\n"
+    ).encode()
+    flags = os.O_RDWR | os.O_APPEND
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(path, flags)
+    try:
+        with os.fdopen(descriptor, "r+b", closefd=False) as handle:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            handle.seek(0)
+            _entries, receipts = parse_diary_buffer_text(handle.read().decode("utf-8", errors="strict"))
+            existing = receipts.get(entry_id)
+            if existing is not None:
+                if existing != hypmem_id:
+                    raise ContinuityError("buffer_receipt_conflict")
+                return False
+            handle.seek(0, os.SEEK_END)
+            handle.write(rendered)
+            handle.flush()
+            os.fsync(handle.fileno())
+            return True
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+def publish_diaries(root: Path, only_entry_ids: set[str] | None = None) -> dict[str, Any]:
+    path = root / "diary-buffer.md"
+    entries, receipts = parse_diary_buffer(path)
+    eligible = entries if only_entry_ids is None else [entry for entry in entries if entry["entry_id"] in only_entry_ids]
+    pending = [entry for entry in eligible if entry["entry_id"] not in receipts]
+    if not pending:
+        return {"status": "ok", "sent": 0, "skipped": len(eligible), "receipts_written": 0, "buffer": str(path)}
+    url, token = publisher_config()
+    written = 0
+    for entry in pending:
+        hypmem_id = post_diary(url, token, entry)
+        if append_receipt(path, entry["entry_id"], hypmem_id):
+            written += 1
+    return {
+        "status": "ok", "sent": len(pending), "skipped": len(eligible) - len(pending),
+        "receipts_written": written, "buffer": str(path),
+    }
 
 
 def write_knowledge_index(root: Path, document: dict[str, Any]) -> dict[str, Any]:
@@ -714,6 +927,7 @@ def parser() -> argparse.ArgumentParser:
     commands = root.add_subparsers(dest="command", required=True)
     diary = commands.add_parser("append-diary")
     diary.add_argument("--input", required=True)
+    commands.add_parser("publish-diary")
     index = commands.add_parser("write-index")
     index.add_argument("--input", required=True)
     handoff = commands.add_parser("write-handoff")
@@ -733,6 +947,14 @@ def main() -> int:
     )
     if args.command == "append-diary":
         result = append_diary(state_root, read_json_input(args.input))
+        try:
+            published = publish_diaries(state_root, {result["entry_id"]})
+        except (ContinuityError, OSError) as exc:
+            result.update({"status": "buffered", "published": False, "reason": str(exc)})
+        else:
+            result.update({"published": True, "publish": published})
+    elif args.command == "publish-diary":
+        result = publish_diaries(state_root)
     elif args.command == "write-index":
         result = write_knowledge_index(state_root, read_json_input(args.input))
     elif args.command == "write-handoff":
