@@ -2,7 +2,7 @@
 
 **SolをOrchestrator、AstraをOracle、LunaをWorkerとして使い分けるCodex CLI向け開発ハーネスです。**
 
-Solは通常の対話・調査・判断・最終レビューを所有します。難しい問題設定や競合する因果説明はread-onlyのAstra Oracleへ限定して問い、仕様と変更範囲が固まった実装はLunaへ委譲します。Oracleの助言とLunaの変更は、どちらもSolが現物に照らして検証します。
+Solは通常の対話・調査・判断・最終レビューを所有します。難しい問題設定や競合する因果説明は、変更を行わない助言役として運用するAstra Oracleへ限定して問い、仕様と変更範囲が固まった実装はLunaへ委譲します。Oracleの助言とLunaの変更は、どちらもSolが現物に照らして検証します。Astraのagent定義は`read-only` sandboxを要求しますが、親runtimeのoverrideが優先される場合があるため、これは機械的なwrite barrierの保証ではありません。runtimeの実効権限にかかわらず、Oracleには変更・commit・push・publishなどを行う権限を与えません。
 
 さらに、問題整理・デバッグ・TDD・設計分析・レビュー・検証などの開発Skillを同梱。
 単にモデルを振り分けるだけでなく、**判断・助言・実装の各工程の品質を底上げする開発環境**を目指しています。
@@ -22,7 +22,7 @@ codex-exosphereでは、Solが問題を理解して作業を整理したあと�
 ```mermaid
 flowchart TD
     U["User"] --> S1["GPT-5.6 Sol<br/>要件整理・調査・設計・作業分割"]
-    S1 -->|"難しい限定判断"| A["GPT-6 Astra<br/>read-only Oracle"]
+    S1 -->|"難しい限定判断"| A["GPT-6 Astra<br/>advisory Oracle"]
     A -->|"根拠・反証・成立条件"| S1
     S1 -->|"実装可能な単位"| L["GPT-5.6 Luna<br/>実装・テスト"]
     L --> S2["GPT-5.6 Sol<br/>diff・テスト結果を最終レビュー"]
@@ -145,7 +145,7 @@ codex-exosphereでは、モデルを単純な上下関係ではなく、役割�
 | Model           | Role |
 | --------------- | ---- |
 | **GPT-5.6 Sol** | Orchestrator: 問題理解、調査、設計、委譲、判断、最終レビュー |
-| **GPT-6 Astra** | Oracle: 難しい問題設定、競合する因果説明、複数契約にまたがる判断へのread-only助言 |
+| **GPT-6 Astra** | Oracle: 難しい問題設定、競合する因果説明、複数契約にまたがる判断への変更を伴わない助言 |
 | **GPT-5.6 Luna** | Worker: 仕様と範囲が明確になった実装 |
 
 基本的な考え方はシンプルです。
@@ -172,7 +172,7 @@ codex-exosphereでは、モデルを単純な上下関係ではなく、役割�
 
 Solは、現物調査後も問題設定自体が疑わしい場合、因果説明が競合する場合、または複数の契約にまたがる設計判断を局所的に解けない場合に限り、Astra Oracleへ一つの限定された問いを渡します。
 
-Oracleは根拠、反証、成立条件、最小の次の確認を返す助言役です。実装、承認、commit、pushは行いません。情報が足りないだけならSolが先に調査し、ユーザーの選好や権限判断をOracleへ委譲しません。
+Oracleは根拠、反証、成立条件、最小の次の確認を返す助言役です。実装、承認、commit、pushは行いません。`sandbox_mode = "read-only"`はagent側の要求であり、親runtime overrideがそれを上回る場合があります。そのためread-onlyはOracleの運用契約として扱い、実効sandboxを確認できない限り機械的なwrite barrierとはみなしません。情報が足りないだけならSolが先に調査し、ユーザーの選好や権限判断をOracleへ委譲しません。
 
 ### Lunaへ渡す仕事
 

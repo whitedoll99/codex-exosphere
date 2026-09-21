@@ -5,9 +5,13 @@ Notable changes to codex-exosphere. The format follows
 
 ## Unreleased
 
-Nothing has been released yet, so no version is cut. The initial commit
-extracted a working harness from a private repository; the entries below cover
-everything since that extraction.
+No unreleased changes yet.
+
+## [0.2.0] - 2026-09-22
+
+First versioned release of the current Sol Orchestrator / Astra Oracle / Luna
+Worker harness. The initial commit extracted a working harness from a private
+repository; the entries below cover the work included in this release.
 
 ### Added
 
@@ -30,6 +34,11 @@ everything since that extraction.
 
 ### Changed
 
+- Clarified in both READMEs that Astra's `read-only` setting is an agent-side
+  sandbox request and an operating-role constraint, not a mechanically
+  guaranteed write barrier when a parent runtime override applies. Mutating
+  actions remain outside Oracle authority regardless of effective runtime
+  permissions.
 - The public routing model is now Sol Orchestrator / Astra Oracle / Luna
   Worker. Both READMEs, installed guidance, responsibility boundaries,
   managed paths, and verification describe the same three-role contract.

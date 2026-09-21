@@ -2,7 +2,7 @@
 
 **A Codex CLI development harness that uses Sol as Orchestrator, Astra as Oracle, and Luna as Worker.**
 
-Sol owns normal conversation, investigation, judgment, and final review. Difficult framing and conflicting causal explanations go to the read-only Astra Oracle as bounded questions. Once behavior and change boundaries are settled, implementation goes to Luna. Sol verifies both Oracle advice and Luna's changes against primary evidence.
+Sol owns normal conversation, investigation, judgment, and final review. Difficult framing and conflicting causal explanations go to Astra Oracle as bounded advisory questions, with no mutation authority. Once behavior and change boundaries are settled, implementation goes to Luna. Sol verifies both Oracle advice and Luna's changes against primary evidence. Astra's agent definition requests a `read-only` sandbox, but a parent runtime override may take precedence, so this is not a guaranteed mechanical write barrier. Regardless of effective runtime permissions, Oracle is not authorized to modify files, commit, push, publish, or perform other mutations.
 
 The harness also ships development Skills for problem framing, diagnosis, TDD, design analysis, review, and verification. It is not only model routing: the goal is **a development environment that raises the quality of judgment, advice, and implementation**.
 
@@ -21,7 +21,7 @@ In codex-exosphere, Sol understands the problem and organizes the work, then del
 ```mermaid
 flowchart TD
     U["User"] --> S1["GPT-5.6 Sol<br/>framing, investigation, design, splitting"]
-    S1 -->|"difficult bounded judgment"| A["GPT-6 Astra<br/>read-only Oracle"]
+    S1 -->|"difficult bounded judgment"| A["GPT-6 Astra<br/>advisory Oracle"]
     A -->|"evidence, counterevidence, assumptions"| S1
     S1 -->|"implementable unit"| L["GPT-5.6 Luna<br/>implementation and tests"]
     L --> S2["GPT-5.6 Sol<br/>reviews the actual diff and test results"]
@@ -141,7 +141,7 @@ codex-exosphere separates models by role rather than by rank.
 | Model | Role |
 | ----- | ---- |
 | **GPT-5.6 Sol** | Orchestrator: framing, investigation, design, delegation, judgment, and final review |
-| **GPT-6 Astra** | Oracle: read-only advice on difficult framing, conflicting causal explanations, and decisions coupling multiple contracts |
+| **GPT-6 Astra** | Oracle: non-mutating advice on difficult framing, conflicting causal explanations, and decisions coupling multiple contracts |
 | **GPT-5.6 Luna** | Worker: implementation once behavior and boundaries are settled |
 
 The idea is simple.
@@ -168,7 +168,7 @@ Sol holds work such as:
 
 Sol gives Astra Oracle one bounded question only when the problem framing itself remains suspect after inspecting evidence, causal explanations still conflict, or a design decision coupling multiple contracts cannot be resolved locally.
 
-Oracle returns evidence, counterevidence, assumptions, and the smallest next check. It does not implement, approve, commit, or push. Missing facts call for investigation first, while user preferences and authority remain with their owners.
+Oracle returns evidence, counterevidence, assumptions, and the smallest next check. It does not implement, approve, commit, or push. `sandbox_mode = "read-only"` is an agent-side request; a parent runtime override may supersede it. Treat read-only as the Oracle's operating contract, not as a mechanically guaranteed write barrier unless the effective runtime boundary has been confirmed. Missing facts call for investigation first, while user preferences and authority remain with their owners.
 
 ### Work Luna receives
 
