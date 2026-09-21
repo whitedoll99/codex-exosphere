@@ -9,6 +9,13 @@ install、verification、uninstallの各経路は2026-08-08に、`HOME`・`CODEX
 併せて、抽出元マシンに紐づくabsolute path・symlink・親ディレクトリへのtraversalを走査し、
 該当する依存は検出されませんでした。
 
+2026-09-21には、既存のpersonal development環境でSol residentが限定されたcross-layer
+変更を契約化し、task-scoped collaboratorの実装へ途中・最終reviewを行う運用観測を記録
+しました。これはSolのorchestration/reviewに関する一例であり、Luna workerやAstra
+Oracleの実行検証、または新規install直後のend-to-end検証ではありません。詳細は
+[Sol orchestrator field note — 2026-09-21](sol-orchestrator-field-note-2026-09-21.md)
+を参照してください。
+
 2026-09-21には三役routingへの更新後に71件のtest suiteとrepository verificationを再実行し、
 Astra Oracleのinstall/uninstall、新規installからのTerra除外、旧install stateに記録された
 未変更Terraの削除、変更済みTerraでのfail-closed停止を隔離HOMEで確認しました。併せて、
