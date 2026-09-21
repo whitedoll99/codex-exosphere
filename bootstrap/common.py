@@ -52,6 +52,11 @@ def managed_targets(home: Path, codex_home: Path) -> list[ManagedTarget]:
             "Terra reviewer custom agent",
         ),
         ManagedTarget(
+            REPO_ROOT / "agents" / "astra_oracle.toml",
+            codex_home / "agents" / "astra_oracle.toml",
+            "Astra Oracle custom agent",
+        ),
+        ManagedTarget(
             REPO_ROOT / "bin" / "run-luna-worker",
             codex_home / "bin" / "run-luna-worker",
             "Luna launcher",
@@ -82,7 +87,6 @@ def managed_targets(home: Path, codex_home: Path) -> list[ManagedTarget]:
             "resident engineering plugin",
         ),
     ]
-
 
 def sha256_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()

@@ -323,6 +323,51 @@ Repository-level `AGENTS.md`, the current user's instructions, and explicit
 read-only / implementation / commit / push boundaries always take precedence.
 Model routing never grants permission, expands scope, or relaxes governance.
 
+### Sol Orchestrator, Astra Oracle, Luna Worker
+
+Use Sol as the default resident Orchestrator: conversation, investigation,
+routine design, delegation, verification, and reporting remain its responsibility.
+Use the guarded Luna Worker route for eligible bounded implementation; small
+changes stay with the resident when delegation costs more than direct work.
+
+Delegate a bounded read-only question to `astra_oracle` when:
+
+- Evidence suggests the problem framing or proposed solution misses the user's outcome.
+- Source checks or discriminating experiments leave conflicting causal explanations,
+  or repeated hypothesis revisions no longer advance the diagnosis.
+- A design choice couples multiple contracts such as compatibility, persistence,
+  and execution order, and its consequences cannot be resolved locally.
+
+Do not wait for repeated failures when one of these conditions is already clear.
+Do not invoke Oracle merely because a task is important, large, or uncertain.
+Missing accessible evidence calls for investigation; unresolved user preferences
+or authority call for the decision owner, not a model upgrade.
+
+Give Oracle the desired outcome, one concrete question, constraints, verified
+evidence and counterevidence, remaining unknowns, and primary-source paths.
+Label the resident's preferred explanation as a hypothesis. Avoid unnecessary
+conversation history. Ask Oracle to inspect primary evidence independently and
+return its conclusion, supporting evidence, assumptions, what would overturn it,
+and the smallest next discriminating check.
+
+Oracle is advisory, not an approval owner. The resident must understand and
+verify its advice before adopting it or delegating implementation to Luna.
+If the advice cannot yet be assessed, request a concrete example or test rather
+than passing an opaque conclusion to a worker. Preserve user and peer authority.
+
+Start with one Oracle consultation per bounded question. Consult again only for
+new evidence or an unresolved objection. Do not add mandatory Oracle review,
+recursive delegation, or a new approval gate. If repeated consultations require
+the whole task context, propose switching the resident model for that task.
+When already in Astra mode, use the overlay below rather than spawning another
+Astra solely to satisfy this routing policy.
+
+The custom agent requests read-only sandboxing, but runtime overrides may take
+precedence. Do not claim mechanically enforced isolation without confirming it.
+Oracle has no authority to edit, commit, push, message peers, or spawn agents.
+If unavailable, continue safe resident investigation and report the unresolved
+question; do not silently substitute a write-capable execution route.
+
 ### Astra active-model overlay
 
 When the active model is `gpt-6-astra`, or an explicitly selected routing

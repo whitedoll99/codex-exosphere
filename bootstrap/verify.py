@@ -309,6 +309,7 @@ def main() -> int:
         REPO_ROOT / "config" / "AGENTS.md",
         REPO_ROOT / "agents" / "luna_worker.toml",
         REPO_ROOT / "agents" / "terra_reviewer.toml",
+        REPO_ROOT / "agents" / "astra_oracle.toml",
         REPO_ROOT / "bin" / "run-luna-worker",
         REPO_ROOT / "bin" / "luna-packet-guard",
         REPO_ROOT / "bin" / "codex-observe",
@@ -468,6 +469,28 @@ def main() -> int:
         and "does not replace the Codex review gate" in routing_text
         and "Do not make Terra review mandatory" in routing_text,
         "resident routing keeps Terra review optional and Codex-owned",
+        failures,
+    )
+    oracle_text = (REPO_ROOT / "agents" / "astra_oracle.toml").read_text()
+    check(
+        all(
+            marker in oracle_text
+            for marker in (
+                'model = "gpt-6-astra"',
+                'model_reasoning_effort = "high"',
+                'sandbox_mode = "read-only"',
+                "Your answer is not approval",
+                "Do not modify files",
+            )
+        ),
+        "Astra Oracle is a read-only high-effort advisor",
+        failures,
+    )
+    check(
+        "### Sol Orchestrator, Astra Oracle, Luna Worker" in routing_text
+        and "Do not invoke Oracle merely because" in routing_text
+        and "Oracle is advisory, not an approval owner" in routing_text,
+        "resident routing bounds Astra Oracle consultation",
         failures,
     )
 

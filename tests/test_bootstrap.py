@@ -203,6 +203,18 @@ class BootstrapTests(unittest.TestCase):
         self.run_script("uninstall.py", "--home", str(self.home), "--apply")
         self.assertFalse(target.exists())
 
+    def test_astra_oracle_install_and_uninstall(self) -> None:
+        source = REPO_ROOT / "agents/astra_oracle.toml"
+        agent = source.read_text()
+        self.assertIn('model = "gpt-6-astra"', agent)
+        self.assertIn('sandbox_mode = "read-only"', agent)
+        self.assertIn("Do not modify files", agent)
+        self.run_script("install.py", *self.install_arguments(), "--apply")
+        target = self.home / ".codex/agents/astra_oracle.toml"
+        self.assertEqual(source.read_bytes(), target.read_bytes())
+        self.run_script("uninstall.py", "--home", str(self.home), "--apply")
+        self.assertFalse(target.exists())
+
     def test_plan_apply_verify_and_uninstall(self) -> None:
         plan = self.run_script("install.py", *self.install_arguments())
         self.assertIn("plan only", plan.stdout)
