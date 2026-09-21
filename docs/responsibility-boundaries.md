@@ -5,8 +5,9 @@
 - ユーザーはproduct direction、goal scope、不可逆・外部影響を伴う判断を所有します。
 - resident Codex（Sol）はscope、委譲判断、actual diff review、verification、最終報告を
   所有します。
+- Astra Oracleは、Solが限定した難しい判断へread-onlyの助言を返します。実装、承認、
+  acceptanceは所有しません。
 - Lunaは、acceptance criteriaと変更範囲が確定したbounded implementationだけを実行します。
-- Terra reviewerは任意のread-only advisory passであり、acceptance ownerにはなりません。
 
 ## routingは権限を与えない
 
@@ -18,7 +19,7 @@ commitとpushを禁止し、launcherは実行の前後でGitの状態を比較�
 
 ## sandboxの実効範囲
 
-`luna_worker`と`terra_reviewer`では、read-onlyに関する事情が異なります。**同じ注意書き
+`luna_worker`と`astra_oracle`では、read-onlyに関する事情が異なります。**同じ注意書き
 としてまとめないでください。**
 
 ### native `luna_worker`
@@ -34,16 +35,17 @@ supportにのみ使用してください。これは運用上の役割制限で�
 **write権限を伴うLuna委譲は、native subagentではなくguarded launcher
 （`bin/run-luna-worker`）を経由します。**
 
-### `terra_reviewer`
+### `astra_oracle`
 
 custom agent定義は`sandbox_mode = "read-only"`を**要求しています**。加えてdeveloper
 instructionsで、file変更、mutating command、commit、push、publish、外部メッセージ送信、
 subagent起動を禁止しています。
 
 ただし親turnのlive runtime overrideがcustom-agent defaultを上回る場合があります。
-**現在のruntimeがその境界を確認できない限り、Terra reviewを「mechanically read-only」と
-記述しないでください。** runtimeの能力にかかわらず、reviewerはfileの編集、commit、push、
-publish、外部メッセージ送信、product / architecture判断を認可されていません。
+**現在のruntimeがその境界を確認できない限り、Oracleを「mechanically read-only」と
+記述しないでください。** runtimeの能力にかかわらず、Oracleはfileの編集、commit、push、
+publish、外部メッセージ送信、product / architecture判断を認可されていません。Oracleの
+回答は承認ではなく、resident Codexが一次資料と照合する助言です。
 
 ## 運用profile
 

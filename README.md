@@ -1,11 +1,11 @@
 # codex-exosphere
 
-**GPT-5.6 Solの判断力を活かしながら、実装をより低コストなGPT-5.6 Lunaへ任せるためのCodex CLI向け開発ハーネスです。**
+**SolをOrchestrator、AstraをOracle、LunaをWorkerとして使い分けるCodex CLI向け開発ハーネスです。**
 
-Solは要件整理・設計・作業分割・最終レビューに集中し、仕様と変更範囲が固まった実装をLunaへ委譲します。Lunaの変更はGitで検査され、最終的にはSolが実際のdiffとテスト結果を確認します。
+Solは通常の対話・調査・判断・最終レビューを所有します。難しい問題設定や競合する因果説明はread-onlyのAstra Oracleへ限定して問い、仕様と変更範囲が固まった実装はLunaへ委譲します。Oracleの助言とLunaの変更は、どちらもSolが現物に照らして検証します。
 
 さらに、問題整理・デバッグ・TDD・設計分析・レビュー・検証などの開発Skillを同梱。
-単にモデルを振り分けるだけでなく、**SolとLunaそれぞれの作業品質を底上げする開発環境**を目指しています。
+単にモデルを振り分けるだけでなく、**判断・助言・実装の各工程の品質を底上げする開発環境**を目指しています。
 
 [English](README_en.md)
 
@@ -22,14 +22,16 @@ codex-exosphereでは、Solが問題を理解して作業を整理したあと�
 ```mermaid
 flowchart TD
     U["User"] --> S1["GPT-5.6 Sol<br/>要件整理・調査・設計・作業分割"]
+    S1 -->|"難しい限定判断"| A["GPT-6 Astra<br/>read-only Oracle"]
+    A -->|"根拠・反証・成立条件"| S1
     S1 -->|"実装可能な単位"| L["GPT-5.6 Luna<br/>実装・テスト"]
     L --> S2["GPT-5.6 Sol<br/>diff・テスト結果を最終レビュー"]
 ```
 
-ユーザーがLunaを直接操作する必要はありません。
-通常どおりSolへ作業を依頼すれば、委譲するかどうかも含めてSolが判断します。
+ユーザーがAstraやLunaを直接操作する必要はありません。
+通常どおりSolへ作業を依頼すれば、相談や委譲を行うかどうかも含めてSolが判断します。
 
-### 2. Sol / Lunaの開発作業そのものを改善する
+### 2. 各役割の開発作業そのものを改善する
 
 codex-exosphereには、ソフトウェア開発向けのSkillセットが含まれています。
 
@@ -140,15 +142,16 @@ Solがタスクを整理し、必要に応じてSkillを使い、Lunaへ委譲�
 
 codex-exosphereでは、モデルを単純な上下関係ではなく、役割によって使い分けます。
 
-| Model             | Role                      |
-| ----------------- | ------------------------- |
-| **GPT-5.6 Sol**   | 問題理解、調査、設計、作業分割、判断、最終レビュー |
-| **GPT-5.6 Luna**  | 仕様と範囲が明確になった実装            |
-| **GPT-5.6 Terra** | 必要に応じたread-heavyな追加レビュー   |
+| Model           | Role |
+| --------------- | ---- |
+| **GPT-5.6 Sol** | Orchestrator: 問題理解、調査、設計、委譲、判断、最終レビュー |
+| **GPT-6 Astra** | Oracle: 難しい問題設定、競合する因果説明、複数契約にまたがる判断へのread-only助言 |
+| **GPT-5.6 Luna** | Worker: 仕様と範囲が明確になった実装 |
 
 基本的な考え方はシンプルです。
 
 > **Use Sol for judgment.**<br>
+> **Use Astra for bounded advice.**<br>
 > **Use Luna for implementation.**<br>
 > **Let Sol verify the result.**
 
@@ -165,6 +168,12 @@ codex-exosphereでは、モデルを単純な上下関係ではなく、役割�
 * security / privacyに関わる変更
 * 複数componentにまたがる大きな作業
 
+### Astraへ相談する判断
+
+Solは、現物調査後も問題設定自体が疑わしい場合、因果説明が競合する場合、または複数の契約にまたがる設計判断を局所的に解けない場合に限り、Astra Oracleへ一つの限定された問いを渡します。
+
+Oracleは根拠、反証、成立条件、最小の次の確認を返す助言役です。実装、承認、commit、pushは行いません。情報が足りないだけならSolが先に調査し、ユーザーの選好や権限判断をOracleへ委譲しません。
+
 ### Lunaへ渡す仕事
 
 Lunaに適しているのは、たとえば次のような作業です。
@@ -180,7 +189,9 @@ Lunaに適しているのは、たとえば次のような作業です。
 
 ```mermaid
 flowchart TD
-    S["GPT-5.6 Sol"] -->|"bounded task"| P["委譲packet"]
+    S["GPT-5.6 Sol<br/>Orchestrator"] -->|"difficult bounded question"| A["GPT-6 Astra<br/>Oracle"]
+    A -->|"evidence and advice"| S
+    S -->|"bounded task"| P["委譲packet"]
     P --> G1["Luna launcher<br/>preflight check"]
     G1 --> L["GPT-5.6 Luna"]
     L --> G2["Git scope check"]
@@ -287,20 +298,6 @@ Skill routing自体もevaluation harnessで検証できます。設計は[Skill 
 
 ---
 
-## Optional Terra review
-
-GPT-5.6 Terraは、通常の変更で毎回使うものではありません。
-
-大きなdiff、regression scan、多数のファイルを読む必要があるレビューなどで、追加のreviewerとして利用できます。
-
-Terraはread-only sandboxで動作するよう設定されており、workspaceを変更しないよう指示されています。ただしruntime側の設定がこれを上回る場合があるため、この境界が重要な場面では[Responsibility boundaries](docs/responsibility-boundaries.md)を確認してください。
-
-Terraの意見も最終決定ではありません。
-
-Solが指摘内容を実際のrepository evidenceと照合し、採否を判断します。
-
----
-
 ## Observatory
 
 Codex Observatoryは、codex-exosphereの実行状況を確認するための軽量なobservability機能です。
@@ -394,7 +391,7 @@ READMEでは通常利用に必要な概要だけを扱います。
 ## Repository layout
 
 ```text
-agents/                 Luna / Terra agent definitions
+agents/                 Astra Oracle / Luna Worker agent definitions
 bin/                    Luna launcher and command shims
 bootstrap/              install / verify / uninstall
 codex_observability/    Observatory
@@ -411,7 +408,7 @@ tests/                  tests
 
 codex-exosphereは現在、**個人のLinux開発環境**を主な対象としています。
 
-bootstrap、install、verification、uninstallの各経路は、隔離したLinux環境でend to endに検証済みです。一方で、**公開版を新規インストールした直後の、認証を伴うSol / Luna / Terraの実model実行はまだ検証していません。**
+bootstrap、install、verification、uninstallの各経路は、隔離したLinux環境でend to endに検証済みです。一方で、**公開版を新規インストールした直後の、認証を伴うSol / Astra / Lunaの実model実行はまだ検証していません。**
 
 macOS / Windowsは現時点では主要な検証対象ではありません。Codex CLIやモデル側の仕様変更によって挙動が変わる可能性があります。
 

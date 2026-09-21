@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -149,6 +150,17 @@ class BootstrapTests(unittest.TestCase):
             str(self.local),
         ]
 
+    def add_legacy_terra_to_install_state(self) -> Path:
+        target = self.home / ".codex/agents/terra_reviewer.toml"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("legacy managed Terra reviewer\n")
+        digest = hashlib.sha256(b"F\x000\x00" + target.read_bytes()).hexdigest()
+        state_path = self.home / ".local/state/codex-exosphere/install-state.json"
+        state = json.loads(state_path.read_text())
+        state["created"].append({"path": str(target), "digest": digest})
+        state_path.write_text(json.dumps(state))
+        return target
+
     def test_render_config_expands_home_and_parses(self) -> None:
         result = self.run_script(
             "render_config.py",
@@ -175,34 +187,6 @@ class BootstrapTests(unittest.TestCase):
         )
         self.assertIn(f'  "{self.home / "codex-exosphere"}",', result.stdout)
 
-    def test_terra_reviewer_is_managed_as_optional_read_only_advisor(self) -> None:
-        source = REPO_ROOT / "agents/terra_reviewer.toml"
-        self.assertTrue(source.is_file())
-        text = source.read_text()
-        for marker in (
-            'name = "terra_reviewer"',
-            'model = "gpt-5.6-terra"',
-            'model_reasoning_effort = "high"',
-            'sandbox_mode = "read-only"',
-            "advisory",
-            "Do not modify files",
-        ):
-            self.assertIn(marker, text)
-
-        routing = (REPO_ROOT / "config/AGENTS.md").read_text()
-        for marker in (
-            "### Optional Terra review experiment",
-            "does not replace the Codex review gate",
-            "Do not make Terra review mandatory",
-        ):
-            self.assertIn(marker, routing)
-
-        self.run_script("install.py", *self.install_arguments(), "--apply")
-        target = self.home / ".codex/agents/terra_reviewer.toml"
-        self.assertEqual(source.read_bytes(), target.read_bytes())
-        self.run_script("uninstall.py", "--home", str(self.home), "--apply")
-        self.assertFalse(target.exists())
-
     def test_astra_oracle_install_and_uninstall(self) -> None:
         source = REPO_ROOT / "agents/astra_oracle.toml"
         agent = source.read_text()
@@ -214,6 +198,34 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(source.read_bytes(), target.read_bytes())
         self.run_script("uninstall.py", "--home", str(self.home), "--apply")
         self.assertFalse(target.exists())
+
+    def test_new_install_does_not_create_retired_terra_reviewer(self) -> None:
+        self.assertFalse((REPO_ROOT / "agents/terra_reviewer.toml").exists())
+        routing = (REPO_ROOT / "config/AGENTS.md").read_text()
+        self.assertNotIn("terra_reviewer", routing)
+        self.run_script("install.py", *self.install_arguments(), "--apply")
+        target = self.home / ".codex/agents/terra_reviewer.toml"
+        self.assertFalse(target.exists())
+
+    def test_uninstall_removes_unchanged_legacy_terra_reviewer(self) -> None:
+        self.run_script("install.py", *self.install_arguments(), "--apply")
+        target = self.add_legacy_terra_to_install_state()
+        self.run_script("uninstall.py", "--home", str(self.home), "--apply")
+        self.assertFalse(target.exists())
+
+    def test_uninstall_refuses_changed_legacy_terra_reviewer(self) -> None:
+        self.run_script("install.py", *self.install_arguments(), "--apply")
+        target = self.add_legacy_terra_to_install_state()
+        target.write_text(target.read_text() + "local change\n")
+        result = self.run_script(
+            "uninstall.py",
+            "--home",
+            str(self.home),
+            "--apply",
+            expected=1,
+        )
+        self.assertIn("changed or missing managed path", result.stderr)
+        self.assertTrue(target.exists())
 
     def test_plan_apply_verify_and_uninstall(self) -> None:
         plan = self.run_script("install.py", *self.install_arguments())

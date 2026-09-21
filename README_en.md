@@ -1,10 +1,10 @@
 # codex-exosphere
 
-**A Codex CLI development harness that keeps judgment with GPT-5.6 Sol while delegating implementation to the lower-cost GPT-5.6 Luna.**
+**A Codex CLI development harness that uses Sol as Orchestrator, Astra as Oracle, and Luna as Worker.**
 
-Sol concentrates on framing the request, investigation, design, splitting the work, and final review. Once the behavior and the change boundary are settled, the implementation goes to Luna. Luna's changes are checked against Git, and Sol confirms the actual diff and test results before anything is reported as done.
+Sol owns normal conversation, investigation, judgment, and final review. Difficult framing and conflicting causal explanations go to the read-only Astra Oracle as bounded questions. Once behavior and change boundaries are settled, implementation goes to Luna. Sol verifies both Oracle advice and Luna's changes against primary evidence.
 
-The harness also ships development Skills for problem framing, diagnosis, TDD, design analysis, review, and verification. It is not only model routing: the goal is **a development environment that raises the quality of Sol's and Luna's work**.
+The harness also ships development Skills for problem framing, diagnosis, TDD, design analysis, review, and verification. It is not only model routing: the goal is **a development environment that raises the quality of judgment, advice, and implementation**.
 
 [日本語](README.md)
 
@@ -21,13 +21,15 @@ In codex-exosphere, Sol understands the problem and organizes the work, then del
 ```mermaid
 flowchart TD
     U["User"] --> S1["GPT-5.6 Sol<br/>framing, investigation, design, splitting"]
+    S1 -->|"difficult bounded judgment"| A["GPT-6 Astra<br/>read-only Oracle"]
+    A -->|"evidence, counterevidence, assumptions"| S1
     S1 -->|"implementable unit"| L["GPT-5.6 Luna<br/>implementation and tests"]
     L --> S2["GPT-5.6 Sol<br/>reviews the actual diff and test results"]
 ```
 
-You do not drive Luna yourself. Ask Sol for the work as usual, and Sol decides whether to delegate it at all.
+You do not drive Astra or Luna yourself. Ask Sol for the work as usual, and Sol decides whether to consult or delegate at all.
 
-### 2. Improve how Sol and Luna actually work
+### 2. Improve how each role actually works
 
 codex-exosphere includes a set of Skills for software development.
 
@@ -136,15 +138,16 @@ Sol organizes the task, uses Skills where they apply, and decides whether the wo
 
 codex-exosphere separates models by role rather than by rank.
 
-| Model             | Role                                                                   |
-| ----------------- | ---------------------------------------------------------------------- |
-| **GPT-5.6 Sol**   | Framing, investigation, design, work splitting, judgment, final review  |
-| **GPT-5.6 Luna**  | Implementation once behavior and boundary are settled                   |
-| **GPT-5.6 Terra** | Optional read-heavy additional review                                   |
+| Model | Role |
+| ----- | ---- |
+| **GPT-5.6 Sol** | Orchestrator: framing, investigation, design, delegation, judgment, and final review |
+| **GPT-6 Astra** | Oracle: read-only advice on difficult framing, conflicting causal explanations, and decisions coupling multiple contracts |
+| **GPT-5.6 Luna** | Worker: implementation once behavior and boundaries are settled |
 
 The idea is simple.
 
 > **Use Sol for judgment.**<br>
+> **Use Astra for bounded advice.**<br>
 > **Use Luna for implementation.**<br>
 > **Let Sol verify the result.**
 
@@ -161,6 +164,12 @@ Sol holds work such as:
 * security and privacy changes
 * large work spanning multiple components
 
+### When Sol consults Astra
+
+Sol gives Astra Oracle one bounded question only when the problem framing itself remains suspect after inspecting evidence, causal explanations still conflict, or a design decision coupling multiple contracts cannot be resolved locally.
+
+Oracle returns evidence, counterevidence, assumptions, and the smallest next check. It does not implement, approve, commit, or push. Missing facts call for investigation first, while user preferences and authority remain with their owners.
+
 ### Work Luna receives
 
 Luna suits work such as:
@@ -176,7 +185,9 @@ If a design decision or a scope extension turns out to be necessary mid-task, Lu
 
 ```mermaid
 flowchart TD
-    S["GPT-5.6 Sol"] -->|"bounded task"| P["delegation packet"]
+    S["GPT-5.6 Sol<br/>Orchestrator"] -->|"difficult bounded question"| A["GPT-6 Astra<br/>Oracle"]
+    A -->|"evidence and advice"| S
+    S -->|"bounded task"| P["delegation packet"]
     P --> G1["Luna launcher<br/>preflight check"]
     G1 --> L["GPT-5.6 Luna"]
     L --> G2["Git scope check"]
@@ -275,18 +286,6 @@ Skill routing itself can be evaluated. See the [Skill routing eval design](docs/
 
 ---
 
-## Optional Terra review
-
-GPT-5.6 Terra is not meant for every change.
-
-It is available as an additional reviewer for large diffs, regression scans, and reviews that require reading many files.
-
-Terra is configured to run in a read-only sandbox and is instructed not to modify the workspace. Because a runtime setting can supersede that default, confirm the boundary in [Responsibility boundaries](docs/responsibility-boundaries.md) when it matters.
-
-Terra's opinion is not a decision either. Sol checks each finding against actual repository evidence and decides its disposition.
-
----
-
 ## Observatory
 
 Codex Observatory is a lightweight local view of what codex-exosphere did.
@@ -378,7 +377,7 @@ Documents under `docs/` are currently maintained primarily in Japanese; this Eng
 ## Repository layout
 
 ```text
-agents/                 Luna / Terra agent definitions
+agents/                 Astra Oracle / Luna Worker agent definitions
 bin/                    Luna launcher and command shims
 bootstrap/              install / verify / uninstall
 codex_observability/    Observatory
@@ -395,7 +394,7 @@ tests/                  tests
 
 codex-exosphere currently targets a **personal Linux development environment**.
 
-The bootstrap, install, verification, and uninstall paths have been exercised end to end in an isolated Linux environment. However, **a fresh authenticated model run by Sol, Luna, or Terra immediately after installing the public release has not been verified yet.**
+The bootstrap, install, verification, and uninstall paths have been exercised end to end in an isolated Linux environment. However, **a fresh authenticated model run by Sol, Astra, or Luna immediately after installing the public release has not been verified yet.**
 
 macOS and Windows are not primary verification targets at this point, and behavior may change with Codex CLI or model-side updates.
 

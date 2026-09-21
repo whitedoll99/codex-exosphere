@@ -47,11 +47,6 @@ def managed_targets(home: Path, codex_home: Path) -> list[ManagedTarget]:
             "Luna custom agent",
         ),
         ManagedTarget(
-            REPO_ROOT / "agents" / "terra_reviewer.toml",
-            codex_home / "agents" / "terra_reviewer.toml",
-            "Terra reviewer custom agent",
-        ),
-        ManagedTarget(
             REPO_ROOT / "agents" / "astra_oracle.toml",
             codex_home / "agents" / "astra_oracle.toml",
             "Astra Oracle custom agent",
@@ -87,6 +82,12 @@ def managed_targets(home: Path, codex_home: Path) -> list[ManagedTarget]:
             "resident engineering plugin",
         ),
     ]
+
+
+def legacy_uninstall_destinations(codex_home: Path) -> set[Path]:
+    """Return retired managed paths accepted only from an existing install state."""
+    return {codex_home / "agents" / "terra_reviewer.toml"}
+
 
 def sha256_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()

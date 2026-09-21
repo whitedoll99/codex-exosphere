@@ -11,6 +11,10 @@ everything since that extraction.
 
 ### Added
 
+- A read-only GPT-6 Astra Oracle for difficult problem framing, conflicting
+  causal explanations, and design choices that couple multiple contracts.
+  Sol remains the decision and verification owner; Oracle advice grants no
+  implementation or approval authority.
 - `docs/luna-packet.example.json`, a complete packet to copy from. The guard
   requires all eleven fields and rejects unknown ones, so a hand-written packet
   rarely validates on the first try (`6cc7817`).
@@ -26,6 +30,13 @@ everything since that extraction.
 
 ### Changed
 
+- The public routing model is now Sol Orchestrator / Astra Oracle / Luna
+  Worker. Both READMEs, installed guidance, responsibility boundaries,
+  managed paths, and verification describe the same three-role contract.
+- The plugin cachebuster was refreshed to
+  `0.2.0+codex.20260921060626`; the plugin's semantic base version remains
+  `0.2.0` because this change affects harness routing and managed agents, not
+  the plugin skill contract.
 - The quick start now uses the concrete GitHub clone URL and documents the
   bootstrap contract for an existing global `AGENTS.md`: missing or identical
   is supported, while different content stops the whole no-clobber install.
@@ -46,6 +57,13 @@ everything since that extraction.
 - The quick start says what to reach for after installing, since the sections
   below it otherwise read as parallel features rather than an order
   (`6cc7817`).
+
+### Removed
+
+- The unused Terra reviewer is no longer installed or advertised as an active
+  routing role. Uninstall remains backward compatible with an unchanged
+  `terra_reviewer.toml` recorded by an older install state; a locally changed
+  file still stops removal fail closed.
 
 ## 33759b3 — initial extraction, 2026-08-08
 

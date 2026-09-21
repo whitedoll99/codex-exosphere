@@ -308,7 +308,6 @@ def main() -> int:
         REPO_ROOT / "README.md",
         REPO_ROOT / "config" / "AGENTS.md",
         REPO_ROOT / "agents" / "luna_worker.toml",
-        REPO_ROOT / "agents" / "terra_reviewer.toml",
         REPO_ROOT / "agents" / "astra_oracle.toml",
         REPO_ROOT / "bin" / "run-luna-worker",
         REPO_ROOT / "bin" / "luna-packet-guard",
@@ -449,28 +448,6 @@ def main() -> int:
     )
     worker_text = (REPO_ROOT / "agents" / "luna_worker.toml").read_text()
     check("soft work budget" in worker_text, "native Luna agent enforces soft work budget", failures)
-    reviewer_text = (REPO_ROOT / "agents" / "terra_reviewer.toml").read_text()
-    check(
-        all(
-            marker in reviewer_text
-            for marker in (
-                'model = "gpt-5.6-terra"',
-                'model_reasoning_effort = "high"',
-                'sandbox_mode = "read-only"',
-                "This role is advisory",
-                "Do not modify files",
-            )
-        ),
-        "Terra reviewer is a read-only high-effort advisor",
-        failures,
-    )
-    check(
-        "### Optional Terra review experiment" in routing_text
-        and "does not replace the Codex review gate" in routing_text
-        and "Do not make Terra review mandatory" in routing_text,
-        "resident routing keeps Terra review optional and Codex-owned",
-        failures,
-    )
     oracle_text = (REPO_ROOT / "agents" / "astra_oracle.toml").read_text()
     check(
         all(

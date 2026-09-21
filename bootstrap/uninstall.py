@@ -16,6 +16,7 @@ from common import (
     PLUGIN_NAME,
     PLUGIN_SELECTOR,
     atomic_write,
+    legacy_uninstall_destinations,
     load_marketplace,
     managed_targets,
     marketplace_bytes,
@@ -49,6 +50,9 @@ def main() -> int:
     allowed_paths = {
         target.destination.resolve() for target in managed_targets(home, codex_home)
     }
+    allowed_paths.update(
+        path.resolve() for path in legacy_uninstall_destinations(codex_home)
+    )
     allowed_paths.add((codex_home / "config.toml").resolve())
     created = [(Path(item["path"]), item["digest"]) for item in state.get("created", [])]
     unexpected = [path for path, _ in created if path.resolve() not in allowed_paths]

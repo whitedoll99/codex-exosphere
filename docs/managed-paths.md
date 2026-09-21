@@ -7,7 +7,7 @@
 | --- | --- |
 | `config/AGENTS.md` | `$CODEX_HOME/AGENTS.md` |
 | `agents/luna_worker.toml` | `$CODEX_HOME/agents/luna_worker.toml` |
-| `agents/terra_reviewer.toml` | `$CODEX_HOME/agents/terra_reviewer.toml` |
+| `agents/astra_oracle.toml` | `$CODEX_HOME/agents/astra_oracle.toml` |
 | `bin/run-luna-worker` | `$CODEX_HOME/bin/run-luna-worker` |
 | `bin/luna-packet-guard` | `$CODEX_HOME/bin/luna-packet-guard` |
 | `bin/codex-observe` | `$CODEX_HOME/bin/codex-observe` |
@@ -19,6 +19,11 @@
 installerは所有情報とdigestを`~/.local/state/codex-exosphere/install-state.json`へ
 保存します。既存の異なるファイルを上書きせず、uninstallもinstallerが作成し、その後
 変更されていないartifactだけを削除します。
+
+旧版が作成した`$CODEX_HOME/agents/terra_reviewer.toml`は新規install対象ではありません。
+旧install stateに記録され、かつ記録済みdigestと現物が一致する場合に限り、uninstallerが
+legacy managed pathとして削除します。内容が変更されている場合は削除せず、uninstall全体を
+fail closedで停止します。
 
 ## `$HOME/.local/bin`について
 

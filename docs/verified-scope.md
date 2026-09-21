@@ -5,9 +5,14 @@
 install、verification、uninstallの各経路は2026-08-08に、`HOME`・`CODEX_HOME`・
 `XDG_STATE_HOME`をtemporary directoryへ差し替えた使い捨てのLinux環境で、end to endに
 実行しました。planとapplyの両phase、repository verificationとinstalled verification、
-既存のCodex CLIを用いたplugin addとremove、uninstall、66件のtest suite全体が対象です。
+既存のCodex CLIを用いたplugin addとremove、uninstall、当時66件のtest suite全体が対象です。
 併せて、抽出元マシンに紐づくabsolute path・symlink・親ディレクトリへのtraversalを走査し、
 該当する依存は検出されませんでした。
+
+2026-09-21には三役routingへの更新後に71件のtest suiteとrepository verificationを再実行し、
+Astra Oracleのinstall/uninstall、新規installからのTerra除外、旧install stateに記録された
+未変更Terraの削除、変更済みTerraでのfail-closed停止を隔離HOMEで確認しました。併せて、
+この環境で利用可能なofficial plugin validatorも通過しました。
 
 既存`$CODEX_HOME/AGENTS.md`の3状態（存在しない / byte単位で同一 / 内容が異なる）も、
 隔離HOMEで実際に再現して契約どおりに動作することを確認しています。手順は
@@ -28,9 +33,7 @@ python3 evals/run.py validate
 - Codex CLIの新規インストール。実行時はインストール済みの`codex-cli 0.147.0`を
   使用しました。
 - 新規のCodex loginのprovisioning、および認証を伴うmodel実行。
-- **インストール後のLuna・Terra・Solの実際のmodel呼び出し。**
-- official plugin validator。test環境に存在せず、repository verificationとinstalled
-  verificationの双方で`SKIP`となりました。
+- **インストール後のSol・Astra・Lunaの実際のmodel呼び出し。**
 - macOS、Windows、および将来のCodex CLIとの互換性。
 
 ## 欠陥ではなく意図した挙動
