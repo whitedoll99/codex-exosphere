@@ -378,6 +378,7 @@ READMEでは通常利用に必要な概要だけを扱います。
 内部contract、設計判断、評価方法、実測結果などは `docs/` にあります。
 
 * [Luna delegation contract](docs/luna-delegation-contract.md) — 委譲packet、Git scope guard、手動操作
+* [Luna launcher troubleshooting](docs/luna-launcher-troubleshooting.md) — 通信制限、許可ルール、app-server再起動の切り分け
 * [Luna worker efficiency design](docs/luna-worker-efficiency-design.md) — Luna work-unitとcontext効率
 * [Skill routing eval design](docs/skill-routing-eval-design.md) — Skill / model routing評価
 * [Observability foundation design](docs/observability-foundation-design.md) — Observatory設計
