@@ -329,6 +329,7 @@ def main() -> int:
         for marker in (
             'approval_policy = "never"',
             'sandbox_mode = "workspace-write"',
+            'model = "gpt-6-sol"',
             '[plugins."resident-engineering-patterns@personal"]',
         )
     )
@@ -397,6 +398,12 @@ def main() -> int:
     )
     check(observability_compile.returncode == 0, "observability Python sources compile", failures)
     launcher_text = launcher.read_text()
+    check(
+        "--model gpt-6-luna" in launcher_text
+        and '"model": "gpt-6-luna"' in launcher_text,
+        "Luna launcher targets GPT-6 Luna consistently",
+        failures,
+    )
     for skill in ("bounded-tdd", "systematic-diagnosis", "verification-before-reporting"):
         check(skill in launcher_text, f"Luna launcher exposes {skill}", failures)
     check("luna-packet-guard" in launcher_text, "Luna launcher invokes packet guard", failures)
@@ -447,6 +454,7 @@ def main() -> int:
         failures,
     )
     worker_text = (REPO_ROOT / "agents" / "luna_worker.toml").read_text()
+    check('model = "gpt-6-luna"' in worker_text, "native Luna agent targets GPT-6 Luna", failures)
     check("soft work budget" in worker_text, "native Luna agent enforces soft work budget", failures)
     oracle_text = (REPO_ROOT / "agents" / "astra_oracle.toml").read_text()
     check(

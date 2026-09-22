@@ -15,17 +15,17 @@ Solは通常の対話・調査・判断・最終レビューを所有します�
 
 ### 1. 低コストなLunaを実装workerとして使える
 
-GPT-5.6 Solは強力ですが、すべてのコーディングをSol自身に行わせる必要はありません。
+GPT-6 Solは強力ですが、すべてのコーディングをSol自身に行わせる必要はありません。
 
-codex-exosphereでは、Solが問題を理解して作業を整理したあと、判断の余地が少ない実装単位をGPT-5.6 Lunaへ委譲できます。現在のCodex価格体系ではLunaはSolより低コストです（[Codex rate card](https://help.openai.com/en/articles/20001106-codex-rate-card)）。
+codex-exosphereでは、Solが問題を理解して作業を整理したあと、判断の余地が少ない実装単位をGPT-6 Lunaへ委譲できます。現在のCodex価格体系ではLunaはSolより低コストです（[Codex rate card](https://help.openai.com/en/articles/20001106-codex-rate-card)）。
 
 ```mermaid
 flowchart TD
-    U["User"] --> S1["GPT-5.6 Sol<br/>要件整理・調査・設計・作業分割"]
+    U["User"] --> S1["GPT-6 Sol<br/>要件整理・調査・設計・作業分割"]
     S1 -->|"難しい限定判断"| A["GPT-6 Astra<br/>advisory Oracle"]
     A -->|"根拠・反証・成立条件"| S1
-    S1 -->|"実装可能な単位"| L["GPT-5.6 Luna<br/>実装・テスト"]
-    L --> S2["GPT-5.6 Sol<br/>diff・テスト結果を最終レビュー"]
+    S1 -->|"実装可能な単位"| L["GPT-6 Luna<br/>実装・テスト"]
+    L --> S2["GPT-6 Sol<br/>diff・テスト結果を最終レビュー"]
 ```
 
 ユーザーがAstraやLunaを直接操作する必要はありません。
@@ -144,9 +144,9 @@ codex-exosphereでは、モデルを単純な上下関係ではなく、役割�
 
 | Model           | Role |
 | --------------- | ---- |
-| **GPT-5.6 Sol** | Orchestrator: 問題理解、調査、設計、委譲、判断、最終レビュー |
+| **GPT-6 Sol** | Orchestrator: 問題理解、調査、設計、委譲、判断、最終レビュー |
 | **GPT-6 Astra** | Oracle: 難しい問題設定、競合する因果説明、複数契約にまたがる判断への変更を伴わない助言 |
-| **GPT-5.6 Luna** | Worker: 仕様と範囲が明確になった実装 |
+| **GPT-6 Luna** | Worker: 仕様と範囲が明確になった実装 |
 
 基本的な考え方はシンプルです。
 
@@ -189,13 +189,13 @@ Lunaに適しているのは、たとえば次のような作業です。
 
 ```mermaid
 flowchart TD
-    S["GPT-5.6 Sol<br/>Orchestrator"] -->|"difficult bounded question"| A["GPT-6 Astra<br/>Oracle"]
+    S["GPT-6 Sol<br/>Orchestrator"] -->|"difficult bounded question"| A["GPT-6 Astra<br/>Oracle"]
     A -->|"evidence and advice"| S
     S -->|"bounded task"| P["委譲packet"]
     P --> G1["Luna launcher<br/>preflight check"]
-    G1 --> L["GPT-5.6 Luna"]
+    G1 --> L["GPT-6 Luna"]
     L --> G2["Git scope check"]
-    G2 --> R["GPT-5.6 Sol<br/>diff / test review"]
+    G2 --> R["GPT-6 Sol<br/>diff / test review"]
 ```
 
 packetの仕様、preflight / postflightの検査内容、手動でpacketを扱う方法は[Luna delegation contract](docs/luna-delegation-contract.md)にあります。
@@ -216,10 +216,10 @@ codex-exosphereはこの制約のもとで、Lunaを独立したephemeral Codex 
 
 ```mermaid
 flowchart TD
-    S["GPT-5.6 Sol"] -->|"guarded delegation"| W["run-luna-worker"]
+    S["GPT-6 Sol"] -->|"guarded delegation"| W["run-luna-worker"]
     W --> H["temporary CODEX_HOME"]
-    H --> E["codex exec<br/>--model gpt-5.6-luna"]
-    E --> L["GPT-5.6 Luna"]
+    H --> E["codex exec<br/>--model gpt-6-luna"]
+    E --> L["GPT-6 Luna"]
 ```
 
 ただし、単に別のCodex CLIを起動しているだけではありません。

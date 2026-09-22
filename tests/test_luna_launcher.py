@@ -205,6 +205,7 @@ class LunaLauncherContractTests(unittest.TestCase):
         self.assertEqual(["bounded-tdd"], metrics["observed_skills"])
         self.assertNotIn("secret-session", self.metrics.read_text())
         self.assertIn("--json", self.commands.read_text())
+        self.assertIn("--model gpt-6-luna", self.commands.read_text())
         self.assertIn("--sandbox workspace-write", self.commands.read_text())
         self.assertTrue(metrics["scope"]["passed"])
 

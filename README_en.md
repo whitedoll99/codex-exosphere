@@ -14,17 +14,17 @@ The harness also ships development Skills for problem framing, diagnosis, TDD, d
 
 ### 1. Use the lower-cost Luna as your implementation worker
 
-GPT-5.6 Sol is capable, but there is no need to make Sol write every line.
+GPT-6 Sol is capable, but there is no need to make Sol write every line.
 
-In codex-exosphere, Sol understands the problem and organizes the work, then delegates implementation units that need little judgment to GPT-5.6 Luna. Under the current Codex pricing, Luna costs less than Sol ([Codex rate card](https://help.openai.com/en/articles/20001106-codex-rate-card)).
+In codex-exosphere, Sol understands the problem and organizes the work, then delegates implementation units that need little judgment to GPT-6 Luna. Under the current Codex pricing, Luna costs less than Sol ([Codex rate card](https://help.openai.com/en/articles/20001106-codex-rate-card)).
 
 ```mermaid
 flowchart TD
-    U["User"] --> S1["GPT-5.6 Sol<br/>framing, investigation, design, splitting"]
+    U["User"] --> S1["GPT-6 Sol<br/>framing, investigation, design, splitting"]
     S1 -->|"difficult bounded judgment"| A["GPT-6 Astra<br/>advisory Oracle"]
     A -->|"evidence, counterevidence, assumptions"| S1
-    S1 -->|"implementable unit"| L["GPT-5.6 Luna<br/>implementation and tests"]
-    L --> S2["GPT-5.6 Sol<br/>reviews the actual diff and test results"]
+    S1 -->|"implementable unit"| L["GPT-6 Luna<br/>implementation and tests"]
+    L --> S2["GPT-6 Sol<br/>reviews the actual diff and test results"]
 ```
 
 You do not drive Astra or Luna yourself. Ask Sol for the work as usual, and Sol decides whether to consult or delegate at all.
@@ -140,9 +140,9 @@ codex-exosphere separates models by role rather than by rank.
 
 | Model | Role |
 | ----- | ---- |
-| **GPT-5.6 Sol** | Orchestrator: framing, investigation, design, delegation, judgment, and final review |
+| **GPT-6 Sol** | Orchestrator: framing, investigation, design, delegation, judgment, and final review |
 | **GPT-6 Astra** | Oracle: non-mutating advice on difficult framing, conflicting causal explanations, and decisions coupling multiple contracts |
-| **GPT-5.6 Luna** | Worker: implementation once behavior and boundaries are settled |
+| **GPT-6 Luna** | Worker: implementation once behavior and boundaries are settled |
 
 The idea is simple.
 
@@ -185,13 +185,13 @@ If a design decision or a scope extension turns out to be necessary mid-task, Lu
 
 ```mermaid
 flowchart TD
-    S["GPT-5.6 Sol<br/>Orchestrator"] -->|"difficult bounded question"| A["GPT-6 Astra<br/>Oracle"]
+    S["GPT-6 Sol<br/>Orchestrator"] -->|"difficult bounded question"| A["GPT-6 Astra<br/>Oracle"]
     A -->|"evidence and advice"| S
     S -->|"bounded task"| P["delegation packet"]
     P --> G1["Luna launcher<br/>preflight check"]
-    G1 --> L["GPT-5.6 Luna"]
+    G1 --> L["GPT-6 Luna"]
     L --> G2["Git scope check"]
-    G2 --> R["GPT-5.6 Sol<br/>diff / test review"]
+    G2 --> R["GPT-6 Sol<br/>diff / test review"]
 ```
 
 The packet schema, the preflight and postflight checks, and the manual interface are documented in the [Luna delegation contract](docs/luna-delegation-contract.md).
@@ -212,10 +212,10 @@ Conceptually:
 
 ```mermaid
 flowchart TD
-    S["GPT-5.6 Sol"] -->|"guarded delegation"| W["run-luna-worker"]
+    S["GPT-6 Sol"] -->|"guarded delegation"| W["run-luna-worker"]
     W --> H["temporary CODEX_HOME"]
-    H --> E["codex exec<br/>--model gpt-5.6-luna"]
-    E --> L["GPT-5.6 Luna"]
+    H --> E["codex exec<br/>--model gpt-6-luna"]
+    E --> L["GPT-6 Luna"]
 ```
 
 It is not merely another Codex CLI invocation. The Luna environment additionally:

@@ -5,7 +5,12 @@ Notable changes to codex-exosphere. The format follows
 
 ## Unreleased
 
-No unreleased changes yet.
+### Changed
+
+- Updated the resident default and guarded worker route from GPT-5.6 Sol/Luna
+  to GPT-6 Sol/Luna. The model identifiers were verified with read-only live
+  canaries on Codex CLI 0.156.0 before changing the routing defaults; Astra
+  remains the bounded read-only Oracle.
 
 ## [0.2.0] - 2026-09-22
 

@@ -5,7 +5,7 @@ usage() {
   printf '%s\n' \
     'Usage: run-luna-worker --cd GIT_ROOT --packet-file PACKET.json --output FILE [--metrics FILE]' \
     '' \
-    'Runs an ephemeral GPT-5.6 Luna xhigh Codex worker in WORKSPACE.' \
+    'Runs an ephemeral GPT-6 Luna xhigh Codex worker in WORKSPACE.' \
     'The caller remains responsible for reviewing the resulting diff.'
 }
 
@@ -244,7 +244,7 @@ metrics_runtime="$runtime_home/metrics.json"
 diagnostic_runtime="$runtime_home/diagnostic.txt"
 rm -f -- "$output_file"
 
-printf '%s\n' 'luna-worker: started (model=gpt-5.6-luna, reasoning=xhigh)' >&2
+printf '%s\n' 'luna-worker: started (model=gpt-6-luna, reasoning=xhigh)' >&2
 started_at="$(date +%s)"
 
 set +e
@@ -252,7 +252,7 @@ set +e
 {
   printf '%s\n' \
     'You are the delegated luna_worker, not the resident main agent.' \
-    'Use GPT-5.6 Luna xhigh for this bounded implementation task.' \
+    'Use GPT-6 Luna xhigh for this bounded implementation task.' \
     'Do not delegate or spawn another agent.' \
     'Applicable repository instructions and authorization boundaries remain binding.' \
     'Use the available Luna implementation skills when their descriptions match the delegated work.' \
@@ -269,7 +269,7 @@ set +e
 # registry. The outer sandbox exposes that registry read-only, so give the
 # child a private temp root while retaining its own sandbox policy.
 } | CODEX_HOME="$runtime_home" TMPDIR="$worker_tmpdir" codex exec \
-  --model gpt-5.6-luna \
+  --model gpt-6-luna \
   --config 'model_reasoning_effort="xhigh"' \
   --config 'approval_policy="never"' \
   --sandbox "$worker_sandbox" \
@@ -438,7 +438,7 @@ metrics = {
     "schema_version": 1,
     "status": "succeeded" if effective_status == 0 else "failed",
     "exit_code": effective_status,
-    "model": "gpt-5.6-luna",
+    "model": "gpt-6-luna",
     "reasoning_effort": "xhigh",
     "elapsed_seconds": elapsed,
     "jsonl_bytes": len(raw_jsonl.encode("utf-8")),
